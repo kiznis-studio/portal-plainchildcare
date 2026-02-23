@@ -238,15 +238,13 @@ const faqSchema = faqItems.length > 0 ? JSON.stringify({
       </div>
     )}
 
-    <!-- Cross-links -->
-    <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6">
-      <h2 class="text-lg font-semibold mb-3">More Data for {county.name}</h2>
-      <div class="flex flex-wrap gap-3 text-sm">
-        <a href={`https://plainzip.com/search?q=${encodeURIComponent(county.name + ' ' + county.state)}`} target="_blank" rel="noopener" class="text-[var(--color-primary)] hover:underline">ZIP Codes</a>
-        <a href={`https://plainschools.com/search?q=${encodeURIComponent(county.name)}`} target="_blank" rel="noopener" class="text-[var(--color-primary)] hover:underline">Schools</a>
-        <a href={`https://wagedex.com/search?q=${encodeURIComponent(county.state)}`} target="_blank" rel="noopener" class="text-[var(--color-primary)] hover:underline">Salaries</a>
-        <a href={`https://plaincrime.com/search?q=${encodeURIComponent(county.name)}`} target="_blank" rel="noopener" class="text-[var(--color-primary)] hover:underline">Crime Data</a>
-        <a href={`https://plainrent.com/search?q=${encodeURIComponent(county.name)}`} target="_blank" rel="noopener" class="text-[var(--color-primary)] hover:underline">Rent Prices</a>
+    <!-- Cross-Portal Links -->
+    <div class="mt-10 pt-6 border-t border-[var(--color-border)]">
+      <h3 class="text-sm font-semibold uppercase tracking-wider mb-3">Explore More Data</h3>
+      <div class="flex flex-wrap gap-2">
+        <a href="https://plainrent.com" class="text-sm px-3 py-1.5 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors" target="_blank" rel="noopener">Rent Data →</a>
+        <a href="https://plainschools.com" class="text-sm px-3 py-1.5 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors" target="_blank" rel="noopener">Schools →</a>
+        <a href="https://plaincrime.com" class="text-sm px-3 py-1.5 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors" target="_blank" rel="noopener">Crime Stats →</a>
       </div>
     </div>
 
