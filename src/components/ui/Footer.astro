@@ -1,0 +1,49 @@
+---
+const year = new Date().getFullYear();
+---
+
+<footer class="border-t border-[var(--color-border)]">
+  <div class="max-w-6xl mx-auto px-4 py-16 md:py-20">
+    <div class="grid grid-cols-12 gap-8">
+      <div class="col-span-12 md:col-span-4">
+        <a href="/" class="font-bold text-lg text-[var(--color-primary)]">PlainChildcare</a>
+        <p class="mt-2 text-sm text-[var(--color-text-secondary)]">
+          PlainChildcare provides free access to childcare cost data from the U.S. Department of Labor National Database of Childcare Prices.
+        </p>
+      </div>
+
+      <div class="col-span-6 md:col-span-2">
+        <h3 class="font-semibold text-sm text-[var(--color-text)] mb-3">Quick Links</h3>
+        <ul class="space-y-2 text-sm text-[var(--color-text-secondary)]">
+          <li><a href="/" class="hover:text-[var(--color-primary)]">Home</a></li>
+          <li><a href="/state" class="hover:text-[var(--color-primary)]">States</a></li>
+          <li><a href="/rankings" class="hover:text-[var(--color-primary)]">Rankings</a></li>
+          <li><a href="/calculator" class="hover:text-[var(--color-primary)]">Calculator</a></li>
+          <li><a href="/about" class="hover:text-[var(--color-primary)]">About</a></li>
+        </ul>
+      </div>
+
+      <div class="col-span-6 md:col-span-2">
+        <h3 class="font-semibold text-sm text-[var(--color-text)] mb-3">Legal</h3>
+        <ul class="space-y-2 text-sm text-[var(--color-text-secondary)]">
+          <li><a href="/privacy" class="hover:text-[var(--color-primary)]">Privacy Policy</a></li>
+          <li><a href="/terms" class="hover:text-[var(--color-primary)]">Terms of Use</a></li>
+        </ul>
+      </div>
+
+      <div class="col-span-12 md:col-span-4">
+        <h3 class="font-semibold text-sm text-[var(--color-text)] mb-3">Our Network</h3>
+        <ul class="space-y-2 text-sm text-[var(--color-text-secondary)]">
+          <li><a href="https://plainzip.com" class="hover:text-[var(--color-primary)]" target="_blank" rel="noopener">PlainZIP — ZIP Code Demographics</a></li>
+          <li><a href="https://plainschools.com" class="hover:text-[var(--color-primary)]" target="_blank" rel="noopener">PlainSchools — K-12 School Data</a></li>
+          <li><a href="https://wagedex.com" class="hover:text-[var(--color-primary)]" target="_blank" rel="noopener">WageDex — Salary & Wage Data</a></li>
+          <li><a href="https://plainrent.com" class="hover:text-[var(--color-primary)]" target="_blank" rel="noopener">PlainRent — Fair Market Rents</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-12 pt-8 border-t border-[var(--color-border)] text-center text-sm text-[var(--color-text-secondary)]">
+      <p>&copy; {year} PlainChildcare. Data from DOL Women's Bureau National Database of Childcare Prices. Not affiliated with the U.S. Department of Labor.</p>
+    </div>
+  </div>
+</footer>

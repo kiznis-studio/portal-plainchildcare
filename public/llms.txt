@@ -1,0 +1,22 @@
+# PlainChildcare — Childcare Cost Data
+
+> PlainChildcare provides free access to childcare prices across the United States, sourced from the U.S. Department of Labor Women's Bureau National Database of Childcare Prices (NDCP).
+
+## Data Coverage
+- Childcare costs by county for center-based and family-based care
+- Age groups: infant, toddler, preschool, school-age
+- Historical data (2018-2022)
+- Affordability ratios (cost vs median household income)
+- All 50 states + DC
+
+## Data Source
+U.S. Department of Labor, Women's Bureau, National Database of Childcare Prices (NDCP)
+https://www.dol.gov/agencies/wb/topics/childcare/price-data
+
+## Pages
+- Homepage: https://plainchildcare.com/
+- State directory: https://plainchildcare.com/state
+- County profiles: https://plainchildcare.com/county/{slug}
+- Rankings: https://plainchildcare.com/rankings
+- Affordability calculator: https://plainchildcare.com/calculator
+- Search: https://plainchildcare.com/search

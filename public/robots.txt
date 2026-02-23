@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://plainchildcare.com/sitemap-index.xml

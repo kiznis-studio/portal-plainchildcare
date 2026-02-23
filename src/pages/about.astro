@@ -1,0 +1,54 @@
+---
+export const prerender = true;
+import Base from '../layouts/Base.astro';
+---
+
+<Base
+  title="About PlainChildcare"
+  description="Learn about PlainChildcare's methodology, data sources, and mission to make childcare cost data accessible to every American family."
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'About' }]}
+>
+  <div class="max-w-3xl mx-auto px-4 py-12">
+    <h1 class="text-3xl font-bold mb-8">About PlainChildcare</h1>
+    <div class="prose max-w-none space-y-6 text-[var(--color-text-secondary)]">
+      <p class="text-lg">PlainChildcare makes childcare cost data accessible and easy to understand for every American family. We transform government data into a searchable, modern interface.</p>
+
+      <h2 class="text-xl font-semibold text-[var(--color-text)]">Data Source</h2>
+      <p>All data comes from the <strong>U.S. Department of Labor Women's Bureau National Database of Childcare Prices (NDCP)</strong>. This database compiles childcare pricing data at the county level, covering center-based and family-based care across multiple age groups.</p>
+
+      <h2 class="text-xl font-semibold text-[var(--color-text)]">Methodology</h2>
+      <p>We process the raw NDCP dataset to provide:</p>
+      <ul class="list-disc pl-6 space-y-1">
+        <li><strong>County-level costs</strong> — median annual childcare prices by age group and care type</li>
+        <li><strong>Affordability ratios</strong> — childcare cost as a percentage of median household income</li>
+        <li><strong>State aggregations</strong> — average, minimum, and maximum costs by state</li>
+        <li><strong>Historical trends</strong> — price changes over available data years</li>
+      </ul>
+
+      <h2 class="text-xl font-semibold text-[var(--color-text)]">Age Groups</h2>
+      <ul class="list-disc pl-6 space-y-1">
+        <li><strong>Infant</strong> — Under 1 year</li>
+        <li><strong>Toddler</strong> — Ages 1-2</li>
+        <li><strong>Preschool</strong> — Ages 3-5</li>
+        <li><strong>School-age</strong> — Ages 6+</li>
+      </ul>
+
+      <h2 class="text-xl font-semibold text-[var(--color-text)]">Care Types</h2>
+      <ul class="list-disc pl-6 space-y-1">
+        <li><strong>Center-based</strong> — Licensed childcare centers and preschools</li>
+        <li><strong>Family-based</strong> — Licensed family childcare homes</li>
+      </ul>
+
+      <h2 class="text-xl font-semibold text-[var(--color-text)]">Important Notes</h2>
+      <ul class="list-disc pl-6 space-y-1">
+        <li>Prices shown are median annual costs and may not reflect current market rates</li>
+        <li>Actual costs vary by provider, quality rating, and specific location</li>
+        <li>Not all counties have data for all age groups or care types</li>
+        <li>PlainChildcare is not affiliated with the U.S. Department of Labor</li>
+      </ul>
+
+      <h2 class="text-xl font-semibold text-[var(--color-text)]">Contact</h2>
+      <p>Questions or feedback? Reach us at hello@plainchildcare.com.</p>
+    </div>
+  </div>
+</Base>
