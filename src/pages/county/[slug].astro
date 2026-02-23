@@ -1,5 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/ads/AdSlot.astro';
 import { getCountyBySlug, getCountyHistory, formatCost, formatNumber, affordabilityRatio, getStateName } from '../../lib/db';
 
 const { slug } = Astro.params;
@@ -23,6 +24,47 @@ const costRows = [
 const maxCost = Math.max(
   ...costRows.map(r => Math.max(r.center ?? 0, r.family ?? 0)).filter(v => v > 0)
 );
+
+const affordPct = county.median_income && county.center_infant
+  ? ((county.center_infant / county.median_income) * 100).toFixed(1)
+  : null;
+const isAffordable = affordPct ? parseFloat(affordPct) <= 7 : null;
+
+const countyName = `${county.name}, ${county.state}`;
+const faqItems: { q: string; a: string }[] = [];
+if (county.center_infant) {
+  faqItems.push({
+    q: `How much does childcare cost in ${countyName}?`,
+    a: `In ${countyName}, center-based infant care costs ${formatCost(county.center_infant)}/year. Family childcare for infants is ${formatCost(county.family_infant)}/year. Preschool center-based care costs ${formatCost(county.center_preschool)}/year.`
+  });
+}
+if (affordPct && county.median_income) {
+  faqItems.push({
+    q: `Is childcare affordable in ${countyName}?`,
+    a: `Center-based infant care in ${countyName} costs ${affordPct}% of the median household income ($${county.median_income.toLocaleString()}). The HHS affordability threshold is 7%.${isAffordable ? ' Childcare here meets the affordability standard.' : ` Childcare here exceeds the affordability threshold by ${(parseFloat(affordPct) - 7).toFixed(1)} percentage points.`}`
+  });
+}
+if (history.length > 1) {
+  const oldest = history[history.length - 1];
+  const latest = history[0];
+  if (oldest.center_infant && latest.center_infant) {
+    const change = ((latest.center_infant - oldest.center_infant) / oldest.center_infant * 100).toFixed(1);
+    faqItems.push({
+      q: `Are childcare costs rising in ${countyName}?`,
+      a: `From ${oldest.year} to ${latest.year}, center-based infant care in ${countyName} changed from ${formatCost(oldest.center_infant)} to ${formatCost(latest.center_infant)} (${parseFloat(change) >= 0 ? '+' : ''}${change}%).`
+    });
+  }
+}
+
+const faqSchema = faqItems.length > 0 ? JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqItems.map(f => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+}) : null;
 ---
 
 <Base
@@ -37,7 +79,13 @@ const maxCost = Math.max(
       <a href={`/state/${stateSlug}`} class="hover:text-[var(--color-primary)]">{stateName}</a> /
     </div>
     <h1 class="text-2xl md:text-3xl font-bold mb-1">Childcare Costs in {county.name}, {county.state}</h1>
-    <p class="text-[var(--color-text-secondary)] mb-6">FIPS: {county.fips} &middot; Data year: {county.latest_year}</p>
+    <p class="text-[var(--color-text-secondary)] mb-3">FIPS: {county.fips} &middot; Data year: {county.latest_year}</p>
+
+    {county.center_infant && (
+      <p class="text-[var(--color-text-secondary)] mb-6 leading-relaxed">
+        Center-based infant care in <strong>{countyName}</strong> costs <strong>{formatCost(county.center_infant)}/year</strong>{county.family_infant ? `, while family childcare is ${formatCost(county.family_infant)}/year` : ''}.{affordPct ? ` This represents ${affordPct}% of the median household income — ${isAffordable ? 'meeting' : 'exceeding'} the HHS 7% affordability threshold.` : ''}
+      </p>
+    )}
 
     <!-- Key Stats -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -171,6 +219,25 @@ const maxCost = Math.max(
       </div>
     )}
 
+    <AdSlot slot="mid" />
+
+    {faqItems.length > 0 && (
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-4">Frequently Asked Questions</h2>
+        <div class="space-y-4">
+          {faqItems.map(f => (
+            <details class="group bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)]">
+              <summary class="flex items-center justify-between p-4 cursor-pointer font-medium text-[var(--color-text)]">
+                {f.q}
+                <span class="ml-2 text-[var(--color-text-secondary)] group-open:rotate-180 transition-transform">&#9660;</span>
+              </summary>
+              <div class="px-4 pb-4 text-[var(--color-text-secondary)] text-sm">{f.a}</div>
+            </details>
+          ))}
+        </div>
+      </div>
+    )}
+
     <!-- Cross-links -->
     <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6">
       <h2 class="text-lg font-semibold mb-3">More Data for {county.name}</h2>
@@ -187,4 +254,5 @@ const maxCost = Math.max(
       Source: U.S. Department of Labor, Women's Bureau — National Database of Childcare Prices (NDCP). Costs are annual estimates based on weekly median prices.
     </p>
   </section>
+  {faqSchema && <script type="application/ld+json" set:html={faqSchema} />}
 </Base>
