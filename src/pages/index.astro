@@ -5,6 +5,28 @@ import { getAllStates, getNationalStats } from '../lib/db';
 const db = Astro.locals.runtime.env.DB;
 const stats = await getNationalStats(db);
 const states = await getAllStates(db);
+
+const datasetSchema = {
+  "@context": "https://schema.org",
+  "@type": "Dataset",
+  "name": "U.S. Childcare Costs by County and State",
+  "description": "Department of Labor childcare cost data for 3,200+ counties and 45 states, including infant, toddler, and preschool center-based care costs.",
+  "url": "https://plainchildcare.com",
+  "keywords": ["childcare costs", "daycare prices", "DOL childcare data", "infant care costs", "US childcare"],
+  "creator": {
+    "@type": "Organization",
+    "name": "PlainChildcare"
+  },
+  "spatialCoverage": "United States",
+  "temporalCoverage": "2023/2024",
+  "license": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "isAccessibleForFree": true,
+  "distribution": {
+    "@type": "DataDownload",
+    "encodingFormat": "text/html",
+    "contentUrl": "https://plainchildcare.com"
+  }
+};
 ---
 
 <Base
@@ -63,4 +85,6 @@ const states = await getAllStates(db);
       ))}
     </div>
   </section>
+
+  <script type="application/ld+json" set:html={JSON.stringify(datasetSchema)} />
 </Base>
