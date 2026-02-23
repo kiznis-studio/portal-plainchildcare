@@ -6,4 +6,4 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "plainchildcare-db"
-database_id = "PLACEHOLDER"
+database_id = "cc86664b-b430-4215-a5bc-bc69d392836d"
