@@ -1,0 +1,68 @@
+---
+import Base from '../layouts/Base.astro';
+import { searchCounties, formatCost, getStateName, affordabilityRatio } from '../lib/db';
+
+const query = Astro.url.searchParams.get('q') || '';
+const db = Astro.locals.runtime.env.DB;
+const results = query.trim() ? await searchCounties(db, query, 50) : [];
+---
+
+<Base
+  title={query ? `Search: ${query}` : 'Search Childcare Costs'}
+  description={query ? `Search results for "${query}" — ${results.length} counties found.` : 'Search childcare costs by county name, city, or state across the United States.'}
+>
+  <section class="max-w-4xl mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-4">Search Childcare Costs</h1>
+
+    <form action="/search" method="get" class="mb-6">
+      <div class="relative">
+        <input
+          type="text"
+          name="q"
+          value={query}
+          placeholder="Search by county, city, or state..."
+          class="w-full h-12 pl-12 pr-4 text-base rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] placeholder-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+          autofocus
+        />
+        <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+      </div>
+    </form>
+
+    {query && (
+      <p class="text-sm text-[var(--color-text-secondary)] mb-4">
+        {results.length} result{results.length !== 1 ? 's' : ''} for "{query}"
+      </p>
+    )}
+
+    {results.length > 0 && (
+      <div class="space-y-3">
+        {results.map(county => (
+          <a
+            href={`/county/${county.slug}`}
+            class="block p-4 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] bg-[var(--color-bg)] transition-colors"
+          >
+            <div class="font-medium text-[var(--color-primary)]">{county.name}</div>
+            <div class="mt-1 text-sm text-[var(--color-text-secondary)] flex flex-wrap gap-x-4 gap-y-1">
+              <span>{getStateName(county.state)}</span>
+              <span>FIPS: {county.fips}</span>
+              {county.center_infant && <span>Infant: {formatCost(county.center_infant)}/yr</span>}
+              {county.median_income && <span>Income: ${county.median_income.toLocaleString()}</span>}
+              {county.center_infant && county.median_income && (
+                <span>Affordability: {affordabilityRatio(county.center_infant, county.median_income)}</span>
+              )}
+            </div>
+          </a>
+        ))}
+      </div>
+    )}
+
+    {query && results.length === 0 && (
+      <div class="text-center py-12">
+        <p class="text-[var(--color-text-secondary)]">No counties found for "{query}".</p>
+        <p class="text-sm text-[var(--color-text-secondary)] mt-2">Try searching by county name, state name, or FIPS code.</p>
+      </div>
+    )}
+  </section>
+</Base>

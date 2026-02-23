@@ -1,0 +1,141 @@
+---
+import Base from '../layouts/Base.astro';
+import { getNationalStats } from '../lib/db';
+
+const db = Astro.locals.runtime.env.DB;
+const stats = await getNationalStats(db);
+const avgInfant = stats?.avg_center_infant ? Math.round(stats.avg_center_infant) : 10000;
+---
+
+<Base
+  title="Childcare Affordability Calculator"
+  description="Calculate how much of your household income goes to childcare. Compare your costs to county and national averages."
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'Calculator' }]}
+>
+  <section class="max-w-2xl mx-auto px-4 py-8">
+    <div class="mb-2 text-sm text-[var(--color-text-secondary)]">
+      <a href="/" class="hover:text-[var(--color-primary)]">Home</a> /
+    </div>
+    <h1 class="text-2xl md:text-3xl font-bold mb-2">Childcare Affordability Calculator</h1>
+    <p class="text-[var(--color-text-secondary)] mb-8">
+      The U.S. Department of Health and Human Services considers childcare affordable when it costs no more than 7% of a family's income.
+    </p>
+
+    <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6" id="calc">
+      <div class="space-y-6">
+        <div>
+          <label class="block text-sm font-medium mb-2" for="income">Annual Household Income ($)</label>
+          <input
+            type="number"
+            id="income"
+            value="60000"
+            min="0"
+            step="1000"
+            class="w-full h-12 px-4 text-base rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-2" for="cost">Annual Childcare Cost ($)</label>
+          <input
+            type="number"
+            id="cost"
+            value={avgInfant}
+            min="0"
+            step="100"
+            class="w-full h-12 px-4 text-base rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+          />
+          <p class="text-xs text-[var(--color-text-secondary)] mt-1">National average center-based infant: ${avgInfant.toLocaleString()}/year</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-2" for="children">Number of Children in Care</label>
+          <input
+            type="number"
+            id="children"
+            value="1"
+            min="1"
+            max="10"
+            class="w-full h-12 px-4 text-base rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+          />
+        </div>
+
+        <div class="border-t border-[var(--color-border)] pt-6">
+          <div class="text-center">
+            <div class="text-4xl font-bold mb-1" id="result-pct">0%</div>
+            <div class="text-sm text-[var(--color-text-secondary)]" id="result-label">of household income</div>
+          </div>
+
+          <div class="mt-4 w-full h-4 bg-[var(--color-border)] rounded-full overflow-hidden">
+            <div id="result-bar" class="h-full rounded-full transition-all duration-300" style="width: 0%; background: var(--color-primary);"></div>
+          </div>
+          <div class="flex justify-between text-xs text-[var(--color-text-secondary)] mt-1">
+            <span>0%</span>
+            <span class="text-teal-600 dark:text-teal-400">7% threshold</span>
+            <span>50%</span>
+          </div>
+
+          <div class="mt-4 p-4 rounded-lg" id="result-message"></div>
+
+          <div class="grid grid-cols-2 gap-4 mt-4 text-sm">
+            <div class="text-center">
+              <div class="font-bold" id="result-total">$0</div>
+              <div class="text-xs text-[var(--color-text-secondary)]">Total annual cost</div>
+            </div>
+            <div class="text-center">
+              <div class="font-bold" id="result-monthly">$0</div>
+              <div class="text-xs text-[var(--color-text-secondary)]">Monthly cost</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-xs text-[var(--color-text-secondary)] mt-6">
+      This calculator is for informational purposes only and does not constitute financial advice. Actual childcare costs vary by provider, location, and care type.
+    </p>
+  </section>
+
+  <script is:inline>
+    function calculate() {
+      var income = parseFloat(document.getElementById('income').value) || 0;
+      var cost = parseFloat(document.getElementById('cost').value) || 0;
+      var children = parseInt(document.getElementById('children').value) || 1;
+
+      var totalCost = cost * children;
+      var pct = income > 0 ? (totalCost / income) * 100 : 0;
+      var barWidth = Math.min(pct / 50 * 100, 100);
+
+      document.getElementById('result-pct').textContent = pct.toFixed(1) + '%';
+      document.getElementById('result-total').textContent = '$' + totalCost.toLocaleString();
+      document.getElementById('result-monthly').textContent = '$' + Math.round(totalCost / 12).toLocaleString();
+      document.getElementById('result-bar').style.width = barWidth + '%';
+
+      var msg = document.getElementById('result-message');
+      if (pct <= 7) {
+        msg.className = 'mt-4 p-4 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400';
+        msg.textContent = 'Your childcare costs are within the 7% affordability threshold recommended by HHS.';
+      } else if (pct <= 15) {
+        msg.className = 'mt-4 p-4 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400';
+        msg.textContent = 'Your childcare costs exceed the 7% affordability threshold. This is common in many U.S. counties.';
+      } else {
+        msg.className = 'mt-4 p-4 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400';
+        msg.textContent = 'Childcare costs represent a significant portion of your income (' + pct.toFixed(1) + '%). Many families in this situation explore subsidies, tax credits, or alternative care arrangements.';
+      }
+
+      var bar = document.getElementById('result-bar');
+      if (pct <= 7) {
+        bar.style.background = 'var(--color-primary)';
+      } else if (pct <= 15) {
+        bar.style.background = '#d97706';
+      } else {
+        bar.style.background = '#dc2626';
+      }
+    }
+
+    document.getElementById('income').addEventListener('input', calculate);
+    document.getElementById('cost').addEventListener('input', calculate);
+    document.getElementById('children').addEventListener('input', calculate);
+    calculate();
+  </script>
+</Base>

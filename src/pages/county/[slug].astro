@@ -1,0 +1,190 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getCountyBySlug, getCountyHistory, formatCost, formatNumber, affordabilityRatio, getStateName } from '../../lib/db';
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect('/404');
+
+const db = Astro.locals.runtime.env.DB;
+const county = await getCountyBySlug(db, slug);
+if (!county) return Astro.redirect('/404');
+
+const history = await getCountyHistory(db, county.fips);
+const stateName = getStateName(county.state);
+const stateSlug = stateName.toLowerCase().replace(/\s+/g, '-');
+
+const costRows = [
+  { label: 'Infant', center: county.center_infant, family: county.family_infant },
+  { label: 'Toddler', center: county.center_toddler, family: county.family_toddler },
+  { label: 'Preschool', center: county.center_preschool, family: county.family_preschool },
+  { label: 'School Age', center: county.center_school_age, family: county.family_school_age },
+];
+
+const maxCost = Math.max(
+  ...costRows.map(r => Math.max(r.center ?? 0, r.family ?? 0)).filter(v => v > 0)
+);
+---
+
+<Base
+  title={`Childcare Costs in ${county.name}, ${county.state}`}
+  description={`Childcare costs in ${county.name}, ${stateName}. Center-based infant care: ${formatCost(county.center_infant)}/year. Family childcare infant: ${formatCost(county.family_infant)}/year.`}
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'States', href: '/state' }, { name: stateName, href: `/state/${stateSlug}` }, { name: county.name }]}
+>
+  <section class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-2 text-sm text-[var(--color-text-secondary)]">
+      <a href="/" class="hover:text-[var(--color-primary)]">Home</a> /
+      <a href="/state" class="hover:text-[var(--color-primary)]">States</a> /
+      <a href={`/state/${stateSlug}`} class="hover:text-[var(--color-primary)]">{stateName}</a> /
+    </div>
+    <h1 class="text-2xl md:text-3xl font-bold mb-1">Childcare Costs in {county.name}, {county.state}</h1>
+    <p class="text-[var(--color-text-secondary)] mb-6">FIPS: {county.fips} &middot; Data year: {county.latest_year}</p>
+
+    <!-- Key Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
+        <div class="text-xl font-bold text-[var(--color-primary)]">{formatCost(county.center_infant)}</div>
+        <div class="text-xs text-[var(--color-text-secondary)]">Center Infant/yr</div>
+      </div>
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
+        <div class="text-xl font-bold text-[var(--color-primary)]">{formatCost(county.family_infant)}</div>
+        <div class="text-xs text-[var(--color-text-secondary)]">Family Infant/yr</div>
+      </div>
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
+        <div class="text-xl font-bold">{county.median_income ? '$' + county.median_income.toLocaleString() : 'N/A'}</div>
+        <div class="text-xs text-[var(--color-text-secondary)]">Median Income</div>
+      </div>
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
+        <div class="text-xl font-bold">{affordabilityRatio(county.center_infant, county.median_income)}</div>
+        <div class="text-xs text-[var(--color-text-secondary)]">% of Income (Infant)</div>
+      </div>
+    </div>
+
+    <!-- Center vs Family Cost Comparison -->
+    <h2 class="text-lg font-semibold mb-4">Annual Childcare Costs by Age Group</h2>
+    <div class="overflow-x-auto mb-8">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+            <th class="pb-2 font-medium">Age Group</th>
+            <th class="pb-2 font-medium text-right">Center-Based</th>
+            <th class="pb-2 font-medium text-right">Family Childcare</th>
+            <th class="pb-2 font-medium text-right hidden sm:table-cell">Difference</th>
+          </tr>
+        </thead>
+        <tbody>
+          {costRows.map(row => {
+            const diff = row.center && row.family ? row.center - row.family : null;
+            return (
+              <tr class="border-b border-[var(--color-border)]">
+                <td class="py-3 font-medium">{row.label}</td>
+                <td class="py-3 text-right">{formatCost(row.center)}</td>
+                <td class="py-3 text-right">{formatCost(row.family)}</td>
+                <td class="py-3 text-right hidden sm:table-cell">
+                  {diff !== null ? (
+                    <span class={diff > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-teal-600 dark:text-teal-400'}>
+                      {diff > 0 ? '+' : ''}{formatCost(diff)}
+                    </span>
+                  ) : 'N/A'}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Cost Bars -->
+    <h2 class="text-lg font-semibold mb-4">Cost Comparison (Center-Based)</h2>
+    <div class="space-y-3 mb-8">
+      {costRows.filter(r => r.center).map(row => (
+        <div>
+          <div class="flex justify-between text-sm mb-1">
+            <span>{row.label}</span>
+            <span class="font-medium">{formatCost(row.center)}</span>
+          </div>
+          <div class="w-full h-6 bg-[var(--color-border)] rounded-full overflow-hidden">
+            <div
+              class="h-full bg-[var(--color-primary)] rounded-full"
+              style={`width: ${maxCost > 0 ? ((row.center ?? 0) / maxCost * 100) : 0}%`}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <!-- Affordability Context -->
+    {county.median_income && county.center_infant && (
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6 mb-8">
+        <h2 class="text-lg font-semibold mb-3">Affordability Context</h2>
+        <p class="text-sm text-[var(--color-text-secondary)] mb-4">
+          The U.S. Department of Health and Human Services considers childcare affordable when it costs no more than 7% of a family's income.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+          <div>
+            <span class="text-[var(--color-text-secondary)]">Center infant cost: </span>
+            <span class="font-medium">{formatCost(county.center_infant)}</span>
+          </div>
+          <div>
+            <span class="text-[var(--color-text-secondary)]">Median household income: </span>
+            <span class="font-medium">${county.median_income.toLocaleString()}</span>
+          </div>
+          <div>
+            <span class="text-[var(--color-text-secondary)]">Cost as % of income: </span>
+            <span class="font-bold text-lg">{affordabilityRatio(county.center_infant, county.median_income)}</span>
+          </div>
+          <div>
+            <span class="text-[var(--color-text-secondary)]">7% affordability threshold: </span>
+            <span class="font-medium">${Math.round(county.median_income * 0.07).toLocaleString()}/year</span>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <!-- History -->
+    {history.length > 1 && (
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-4">Cost History (Center-Based Infant)</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+                <th class="pb-2 font-medium">Year</th>
+                <th class="pb-2 font-medium text-right">Infant</th>
+                <th class="pb-2 font-medium text-right hidden sm:table-cell">Toddler</th>
+                <th class="pb-2 font-medium text-right hidden sm:table-cell">Preschool</th>
+                <th class="pb-2 font-medium text-right hidden md:table-cell">School Age</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map(h => (
+                <tr class="border-b border-[var(--color-border)]">
+                  <td class="py-2 font-medium">{h.year}</td>
+                  <td class="py-2 text-right">{formatCost(h.center_infant)}</td>
+                  <td class="py-2 text-right hidden sm:table-cell">{formatCost(h.center_toddler)}</td>
+                  <td class="py-2 text-right hidden sm:table-cell">{formatCost(h.center_preschool)}</td>
+                  <td class="py-2 text-right hidden md:table-cell">{formatCost(h.center_school_age)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    <!-- Cross-links -->
+    <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6">
+      <h2 class="text-lg font-semibold mb-3">More Data for {county.name}</h2>
+      <div class="flex flex-wrap gap-3 text-sm">
+        <a href={`https://plainzip.com/search?q=${encodeURIComponent(county.name + ' ' + county.state)}`} target="_blank" rel="noopener" class="text-[var(--color-primary)] hover:underline">ZIP Codes</a>
+        <a href={`https://plainschools.com/search?q=${encodeURIComponent(county.name)}`} target="_blank" rel="noopener" class="text-[var(--color-primary)] hover:underline">Schools</a>
+        <a href={`https://wagedex.com/search?q=${encodeURIComponent(county.state)}`} target="_blank" rel="noopener" class="text-[var(--color-primary)] hover:underline">Salaries</a>
+        <a href={`https://plaincrime.com/search?q=${encodeURIComponent(county.name)}`} target="_blank" rel="noopener" class="text-[var(--color-primary)] hover:underline">Crime Data</a>
+        <a href={`https://plainrent.com/search?q=${encodeURIComponent(county.name)}`} target="_blank" rel="noopener" class="text-[var(--color-primary)] hover:underline">Rent Prices</a>
+      </div>
+    </div>
+
+    <p class="text-xs text-[var(--color-text-secondary)] mt-6">
+      Source: U.S. Department of Labor, Women's Bureau — National Database of Childcare Prices (NDCP). Costs are annual estimates based on weekly median prices.
+    </p>
+  </section>
+</Base>

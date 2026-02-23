@@ -1,0 +1,99 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getStateBySlug, getCountiesByState, formatCost, affordabilityRatio, getStateName } from '../../lib/db';
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect('/404');
+
+const db = Astro.locals.runtime.env.DB;
+const state = await getStateBySlug(db, slug);
+if (!state) return Astro.redirect('/404');
+
+const counties = await getCountiesByState(db, state.abbr, 500);
+const sortParam = Astro.url.searchParams.get('sort') || 'name';
+const sorted = [...counties].sort((a, b) => {
+  if (sortParam === 'infant') return (b.center_infant ?? 0) - (a.center_infant ?? 0);
+  if (sortParam === 'toddler') return (b.center_toddler ?? 0) - (a.center_toddler ?? 0);
+  if (sortParam === 'preschool') return (b.center_preschool ?? 0) - (a.center_preschool ?? 0);
+  return a.name.localeCompare(b.name);
+});
+---
+
+<Base
+  title={`Childcare Costs in ${state.name}`}
+  description={`Childcare costs for ${state.county_count} counties in ${state.name}. Average center-based infant care: ${formatCost(state.avg_center_infant)}/year.`}
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'States', href: '/state' }, { name: state.name }]}
+>
+  <section class="max-w-6xl mx-auto px-4 py-8">
+    <div class="mb-2 text-sm text-[var(--color-text-secondary)]">
+      <a href="/" class="hover:text-[var(--color-primary)]">Home</a> /
+      <a href="/state" class="hover:text-[var(--color-primary)]">States</a> /
+    </div>
+    <h1 class="text-2xl md:text-3xl font-bold mb-2">Childcare Costs in {state.name}</h1>
+    <p class="text-[var(--color-text-secondary)] mb-6">{state.county_count} counties with cost data</p>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
+        <div class="text-xl font-bold text-[var(--color-primary)]">{formatCost(state.avg_center_infant)}</div>
+        <div class="text-xs text-[var(--color-text-secondary)]">Avg Infant (Center)</div>
+      </div>
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
+        <div class="text-xl font-bold text-[var(--color-primary)]">{formatCost(state.avg_center_toddler)}</div>
+        <div class="text-xs text-[var(--color-text-secondary)]">Avg Toddler (Center)</div>
+      </div>
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
+        <div class="text-xl font-bold text-[var(--color-primary)]">{formatCost(state.avg_center_preschool)}</div>
+        <div class="text-xs text-[var(--color-text-secondary)]">Avg Preschool (Center)</div>
+      </div>
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
+        <div class="text-xl font-bold">{formatCost(state.min_center_infant)}</div>
+        <div class="text-xs text-[var(--color-text-secondary)]">Lowest Infant</div>
+        <div class="text-xl font-bold mt-1">{formatCost(state.max_center_infant)}</div>
+        <div class="text-xs text-[var(--color-text-secondary)]">Highest Infant</div>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 mb-4">
+      <h2 class="text-lg font-semibold">Counties</h2>
+      <div class="text-xs text-[var(--color-text-secondary)] ml-auto flex gap-2">
+        Sort:
+        <a href={`/state/${slug}?sort=name`} class={`hover:text-[var(--color-primary)] ${sortParam === 'name' ? 'text-[var(--color-primary)] font-medium' : ''}`}>Name</a>
+        <a href={`/state/${slug}?sort=infant`} class={`hover:text-[var(--color-primary)] ${sortParam === 'infant' ? 'text-[var(--color-primary)] font-medium' : ''}`}>Infant Cost</a>
+        <a href={`/state/${slug}?sort=preschool`} class={`hover:text-[var(--color-primary)] ${sortParam === 'preschool' ? 'text-[var(--color-primary)] font-medium' : ''}`}>Preschool Cost</a>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+            <th class="pb-2 font-medium">County</th>
+            <th class="pb-2 font-medium text-right">Infant</th>
+            <th class="pb-2 font-medium text-right hidden sm:table-cell">Toddler</th>
+            <th class="pb-2 font-medium text-right hidden sm:table-cell">Preschool</th>
+            <th class="pb-2 font-medium text-right hidden md:table-cell">School Age</th>
+            <th class="pb-2 font-medium text-right hidden md:table-cell">Affordability</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map(county => (
+            <tr class="border-b border-[var(--color-border)] hover:bg-[var(--color-surface)] transition-colors">
+              <td class="py-3">
+                <a href={`/county/${county.slug}`} class="text-[var(--color-primary)] hover:underline font-medium text-sm">{county.name}</a>
+              </td>
+              <td class="py-3 text-right text-sm">{formatCost(county.center_infant)}</td>
+              <td class="py-3 text-right text-sm hidden sm:table-cell">{formatCost(county.center_toddler)}</td>
+              <td class="py-3 text-right text-sm hidden sm:table-cell">{formatCost(county.center_preschool)}</td>
+              <td class="py-3 text-right text-sm hidden md:table-cell">{formatCost(county.center_school_age)}</td>
+              <td class="py-3 text-right text-sm hidden md:table-cell">{affordabilityRatio(county.center_infant, county.median_income)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="text-xs text-[var(--color-text-secondary)] mt-6">
+      Source: U.S. Department of Labor, Women's Bureau — National Database of Childcare Prices (NDCP). Costs shown are annual estimates.
+    </p>
+  </section>
+</Base>
