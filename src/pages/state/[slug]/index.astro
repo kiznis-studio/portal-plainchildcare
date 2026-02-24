@@ -1,6 +1,6 @@
 ---
-import Base from '../../layouts/Base.astro';
-import { getStateBySlug, getCountiesByState, formatCost, affordabilityRatio, getStateName } from '../../lib/db';
+import Base from '../../../layouts/Base.astro';
+import { getStateBySlug, getCountiesByState, formatCost, affordabilityRatio, getStateName } from '../../../lib/db';
 
 const { slug } = Astro.params;
 if (!slug) return Astro.redirect('/404');
@@ -51,6 +51,24 @@ const sorted = [...counties].sort((a, b) => {
         <div class="text-xl font-bold mt-1">{formatCost(state.max_center_infant)}</div>
         <div class="text-xs text-[var(--color-text-secondary)]">Highest Infant</div>
       </div>
+    </div>
+
+    <!-- Ranking Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+      <a href={`/state/${slug}/cheapest-childcare`} class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 hover:border-[var(--color-primary)] transition-colors group">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="text-2xl">&#9660;</span>
+          <h3 class="font-semibold group-hover:text-[var(--color-primary)] transition-colors">Cheapest Childcare</h3>
+        </div>
+        <p class="text-sm text-[var(--color-text-secondary)]">Counties with the lowest infant care costs in {state.name}, starting at {formatCost(state.min_center_infant)}/yr</p>
+      </a>
+      <a href={`/state/${slug}/most-expensive-childcare`} class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 hover:border-[var(--color-primary)] transition-colors group">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="text-2xl">&#9650;</span>
+          <h3 class="font-semibold group-hover:text-[var(--color-primary)] transition-colors">Most Expensive Childcare</h3>
+        </div>
+        <p class="text-sm text-[var(--color-text-secondary)]">Counties with the highest infant care costs in {state.name}, up to {formatCost(state.max_center_infant)}/yr</p>
+      </a>
     </div>
 
     <div class="flex items-center gap-2 mb-4">

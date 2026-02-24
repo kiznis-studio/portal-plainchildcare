@@ -1,0 +1,127 @@
+---
+import Base from '../../../layouts/Base.astro';
+import AdSlot from '../../../components/ads/AdSlot.astro';
+import { getStateBySlug, getMostExpensiveCountiesByState, formatCost, getStateName } from '../../../lib/db';
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect('/404');
+
+const db = Astro.locals.runtime.env.DB;
+const state = await getStateBySlug(db, slug);
+if (!state) return Astro.redirect('/404');
+
+const counties = await getMostExpensiveCountiesByState(db, state.abbr, 50);
+if (counties.length === 0) return Astro.redirect(`/state/${slug}`);
+
+const stateAvg = state.avg_center_infant;
+const mostExpensiveCounty = counties[0];
+const dataYear = counties[0]?.latest_year || 2023;
+
+const title = `Most Expensive Childcare in ${state.name} 2026 — County Costs`;
+const description = `The ${counties.length} counties with the most expensive childcare in ${state.name}. ${mostExpensiveCounty.name} has the highest infant care at ${formatCost(mostExpensiveCounty.center_infant)}/yr vs state avg ${formatCost(stateAvg)}/yr.`;
+---
+
+<Base
+  title={title}
+  description={description}
+  breadcrumbs={[
+    { name: 'Home', href: '/' },
+    { name: 'States', href: '/state' },
+    { name: state.name, href: `/state/${slug}` },
+    { name: 'Most Expensive Childcare' },
+  ]}
+>
+  <section class="max-w-6xl mx-auto px-4 py-8">
+    <div class="mb-2 text-sm text-[var(--color-text-secondary)]">
+      <a href="/" class="hover:text-[var(--color-primary)]">Home</a> /
+      <a href="/state" class="hover:text-[var(--color-primary)]">States</a> /
+      <a href={`/state/${slug}`} class="hover:text-[var(--color-primary)]">{state.name}</a> /
+    </div>
+    <h1 class="text-2xl md:text-3xl font-bold mb-2">Most Expensive Childcare in {state.name}</h1>
+    <p class="text-[var(--color-text-secondary)] mb-6">Counties ranked by highest center-based infant care cost</p>
+
+    <!-- Stat Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
+        <div class="text-xl font-bold text-amber-600 dark:text-amber-400">{formatCost(mostExpensiveCounty.center_infant)}</div>
+        <div class="text-xs text-[var(--color-text-secondary)]">Most Expensive County</div>
+        <div class="text-xs text-[var(--color-text-secondary)] mt-1 font-medium">{mostExpensiveCounty.name}</div>
+      </div>
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
+        <div class="text-xl font-bold text-[var(--color-primary)]">{formatCost(stateAvg)}</div>
+        <div class="text-xs text-[var(--color-text-secondary)]">State Avg Infant</div>
+      </div>
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
+        <div class="text-xl font-bold">{counties.length}</div>
+        <div class="text-xs text-[var(--color-text-secondary)]">Counties Listed</div>
+      </div>
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
+        <div class="text-xl font-bold">{dataYear}</div>
+        <div class="text-xs text-[var(--color-text-secondary)]">Data Year</div>
+      </div>
+    </div>
+
+    <AdSlot slot="mid" />
+
+    <!-- Rankings Table -->
+    <h2 class="text-lg font-semibold mb-4">Counties with Most Expensive Childcare</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-[var(--color-border)] text-left text-[var(--color-text-secondary)]">
+            <th class="pb-2 font-medium w-8">#</th>
+            <th class="pb-2 font-medium">County</th>
+            <th class="pb-2 font-medium text-right">Infant Care</th>
+            <th class="pb-2 font-medium text-right hidden sm:table-cell">Toddler Care</th>
+            <th class="pb-2 font-medium text-right hidden sm:table-cell">Preschool</th>
+            <th class="pb-2 font-medium text-right hidden md:table-cell">vs State Avg</th>
+          </tr>
+        </thead>
+        <tbody>
+          {counties.map((county, i) => {
+            const diff = stateAvg && county.center_infant
+              ? ((county.center_infant - stateAvg) / stateAvg * 100)
+              : null;
+            const diffStr = diff !== null ? (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%' : 'N/A';
+            const diffClass = diff !== null
+              ? diff < 0 ? 'text-teal-600 dark:text-teal-400' : 'text-amber-600 dark:text-amber-400'
+              : '';
+            return (
+              <tr class="border-b border-[var(--color-border)] hover:bg-[var(--color-surface)] transition-colors">
+                <td class="py-3 text-[var(--color-text-secondary)]">{i + 1}</td>
+                <td class="py-3">
+                  <a href={`/county/${county.slug}`} class="text-[var(--color-primary)] hover:underline font-medium text-sm">{county.name}</a>
+                </td>
+                <td class="py-3 text-right font-medium text-sm">{formatCost(county.center_infant)}/yr</td>
+                <td class="py-3 text-right text-sm hidden sm:table-cell">{formatCost(county.center_toddler)}/yr</td>
+                <td class="py-3 text-right text-sm hidden sm:table-cell">{formatCost(county.center_preschool)}/yr</td>
+                <td class={`py-3 text-right text-sm hidden md:table-cell font-medium ${diffClass}`}>{diffStr}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- See also -->
+    <div class="mt-6 flex flex-wrap gap-3">
+      <a href={`/state/${slug}/cheapest-childcare`} class="text-sm px-4 py-2 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors">
+        Cheapest in {state.name} &rarr;
+      </a>
+      <a href={`/state/${slug}`} class="text-sm px-4 py-2 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors">
+        All {state.name} Counties &rarr;
+      </a>
+      <a href="/rankings" class="text-sm px-4 py-2 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors">
+        National Rankings &rarr;
+      </a>
+    </div>
+
+    <!-- Methodology -->
+    <div class="mt-10 pt-6 border-t border-[var(--color-border)]">
+      <h3 class="text-sm font-semibold mb-2">Methodology</h3>
+      <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">
+        Rankings are based on annual center-based infant childcare costs from the U.S. Department of Labor, Women's Bureau — National Database of Childcare Prices (NDCP). Counties are sorted by highest center-based infant care cost. The "vs State Avg" column shows how each county's infant care cost compares to the {state.name} state average of {formatCost(stateAvg)}/year. Data reflects the most recent available year ({dataYear}).
+      </p>
+    </div>
+  </section>
+</Base>

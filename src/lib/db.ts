@@ -144,6 +144,22 @@ export async function getMostAffordableCounties(db: D1Database, limit = 25): Pro
   return results;
 }
 
+// --- State-Scoped Rankings ---
+
+export async function getCheapestCountiesByState(db: D1Database, stateAbbr: string, limit = 50): Promise<County[]> {
+  const { results } = await db.prepare(
+    'SELECT * FROM counties WHERE state = ? AND center_infant IS NOT NULL AND center_infant > 0 ORDER BY center_infant ASC LIMIT ?'
+  ).bind(stateAbbr, limit).all<County>();
+  return results;
+}
+
+export async function getMostExpensiveCountiesByState(db: D1Database, stateAbbr: string, limit = 50): Promise<County[]> {
+  const { results } = await db.prepare(
+    'SELECT * FROM counties WHERE state = ? AND center_infant IS NOT NULL ORDER BY center_infant DESC LIMIT ?'
+  ).bind(stateAbbr, limit).all<County>();
+  return results;
+}
+
 // --- Search ---
 
 export async function searchCounties(db: D1Database, query: string, limit = 20): Promise<County[]> {
