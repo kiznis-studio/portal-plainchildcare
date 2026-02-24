@@ -1,0 +1,75 @@
+---
+export const prerender = true;
+import Base from '../../layouts/Base.astro';
+
+const title = 'Childcare Guides — Costs, Tax Credits, Subsidies & Savings';
+const description = 'Plain-language guides to help families understand childcare costs, tax credits, subsidy programs, and how to find affordable care across the United States.';
+
+const guides = [
+  {
+    title: 'Child and Dependent Care Tax Credit: A Complete Guide',
+    href: '/guides/childcare-tax-credits-guide',
+    description: 'How the federal CDCTC works, Dependent Care FSA limits, state-level credits, and strategies to maximize tax savings on childcare expenses.',
+    icon: '💵',
+  },
+  {
+    title: 'Cheapest States for Childcare in 2026',
+    href: '/guides/cheapest-states-childcare-2026',
+    description: 'States with the lowest median childcare costs, cost variation by age group, and the factors that drive childcare price differences across the country.',
+    icon: '📊',
+  },
+  {
+    title: 'Center-Based vs Home-Based Childcare: Comparing Your Options',
+    href: '/guides/daycare-vs-home-daycare',
+    description: 'How to compare licensed daycare centers, family home daycares, and nanny arrangements by cost, structure, licensing requirements, and quality indicators.',
+    icon: '🏡',
+  },
+  {
+    title: 'Childcare Subsidy Programs: Federal and State Assistance',
+    href: '/guides/childcare-subsidy-programs',
+    description: 'A plain-language guide to CCDF, Head Start, Early Head Start, and state-specific childcare assistance programs — including how to apply.',
+    icon: '🤝',
+  },
+  {
+    title: 'Employer Childcare Benefits: What to Ask For',
+    href: '/guides/employer-childcare-benefits',
+    description: 'Dependent Care FSAs, on-site childcare tax credits, backup care programs, and how to negotiate childcare benefits with your employer.',
+    icon: '💼',
+  },
+];
+---
+
+<Base title={title} description={description}
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'Guides' }]}
+>
+  <div class="max-w-4xl mx-auto px-4 py-8">
+
+    <header class="mb-10">
+      <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100">Childcare Guides</h1>
+      <p class="text-lg text-gray-500 dark:text-gray-400 mt-2">
+        Plain-language guides to help families understand childcare costs, tax savings, and assistance programs.
+      </p>
+    </header>
+
+    <div class="grid gap-6 sm:grid-cols-2">
+      {guides.map(guide => (
+        <a href={guide.href} class="group block p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 hover:border-rose-300 dark:hover:border-rose-700 hover:shadow-md transition-all">
+          <div class="text-3xl mb-3">{guide.icon}</div>
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+            {guide.title}
+          </h2>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
+            {guide.description}
+          </p>
+        </a>
+      ))}
+    </div>
+
+    <div class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
+      <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">About These Guides</h2>
+      <p class="text-gray-600 dark:text-gray-400 leading-relaxed">
+        PlainChildcare guides are written to help families, employers, and policymakers understand the real cost of childcare in America. All information is sourced from official government data, including the U.S. Department of Labor's National Database of Childcare Prices, the IRS, and the Administration for Children and Families. Use our <a href="/states/" class="text-rose-600 dark:text-rose-400 hover:underline">state pages</a> and <a href="/counties/" class="text-rose-600 dark:text-rose-400 hover:underline">county pages</a> to look up specific childcare costs in your area, or try the <a href="/calculator" class="text-rose-600 dark:text-rose-400 hover:underline">affordability calculator</a>.
+      </p>
+    </div>
+  </div>
+</Base>
