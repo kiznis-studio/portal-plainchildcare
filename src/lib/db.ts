@@ -173,6 +173,23 @@ export async function searchCounties(db: D1Database, query: string, limit = 20):
   return results;
 }
 
+// --- Calculator Data ---
+
+export async function getCountyDataForCalculator(db: D1Database, fips: string): Promise<County | null> {
+  return db.prepare('SELECT * FROM counties WHERE fips = ?').bind(fips).first<County>();
+}
+
+export async function searchCountiesForCalculator(db: D1Database, query: string, limit = 10): Promise<Array<{ fips: string; name: string; state: string; slug: string }>> {
+  const like = '%' + query.trim() + '%';
+  const { results } = await db.prepare(`
+    SELECT fips, name, state, slug FROM counties
+    WHERE name LIKE ? OR state LIKE ?
+    ORDER BY population DESC
+    LIMIT ?
+  `).bind(like, like, limit).all<{ fips: string; name: string; state: string; slug: string }>();
+  return results;
+}
+
 // --- Stats ---
 
 export async function getNationalStats(db: D1Database) {

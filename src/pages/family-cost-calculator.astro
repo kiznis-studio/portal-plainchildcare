@@ -1,0 +1,484 @@
+---
+export const prerender = false;
+import Base from '../layouts/Base.astro';
+import { getNationalStats } from '../lib/db';
+
+const db = Astro.locals.runtime.env.DB;
+const stats = await getNationalStats(db);
+---
+
+<Base
+  title="Family Cost Calculator — How Much Does Childcare Cost Your Family?"
+  description="Calculate your total childcare costs by county, number of children, age groups, and care types. See affordability analysis based on the 7% HHS threshold and compare to county median income."
+  breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'Family Cost Calculator' }]}
+>
+  <section class="py-6 md:py-10">
+    <div class="max-w-4xl mx-auto px-4">
+      <h1 class="text-3xl font-bold text-[var(--color-text)] mb-2">Family Cost Calculator</h1>
+      <p class="text-[var(--color-text-secondary)] mb-8 max-w-2xl">
+        Add your children, select care types, and see your total childcare cost — plus how it compares to the federal affordability threshold.
+      </p>
+
+      <!-- County Selector -->
+      <div class="bg-[var(--color-surface)] rounded-lg p-6 border border-[var(--color-border)] mb-6">
+        <h2 class="font-semibold text-[var(--color-text)] mb-3">1. Select Your County</h2>
+        <div class="relative">
+          <input
+            type="text"
+            id="county-search"
+            placeholder="Search for a county..."
+            autocomplete="off"
+            class="w-full md:w-96 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+          />
+          <div id="county-dropdown" class="absolute z-10 w-full md:w-96 mt-1 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg shadow-lg hidden max-h-60 overflow-y-auto"></div>
+        </div>
+        <div id="county-info" class="hidden mt-3 text-sm text-[var(--color-text-secondary)]"></div>
+      </div>
+
+      <!-- Children -->
+      <div class="bg-[var(--color-surface)] rounded-lg p-6 border border-[var(--color-border)] mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-semibold text-[var(--color-text)]">2. Add Children</h2>
+          <button id="add-child-btn" type="button" class="text-sm px-3 py-1.5 rounded-lg bg-[var(--color-primary)] text-white font-medium hover:opacity-90 transition-opacity">+ Add Child</button>
+        </div>
+        <div id="children-list" class="space-y-3">
+          <!-- Children added dynamically -->
+        </div>
+        <div id="no-children-msg" class="text-sm text-[var(--color-text-secondary)] italic">Click "Add Child" to get started.</div>
+      </div>
+
+      <!-- Household Info -->
+      <div class="bg-[var(--color-surface)] rounded-lg p-6 border border-[var(--color-border)] mb-6">
+        <h2 class="font-semibold text-[var(--color-text)] mb-3">3. Household Finances</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label for="income" class="block text-sm text-[var(--color-text-secondary)] mb-1">Annual Household Income</label>
+            <input type="number" id="income" placeholder="60000" class="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" />
+          </div>
+          <div>
+            <label for="rent" class="block text-sm text-[var(--color-text-secondary)] mb-1">Monthly Rent/Mortgage</label>
+            <input type="number" id="rent" placeholder="1500" class="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" />
+          </div>
+          <div>
+            <label for="other" class="block text-sm text-[var(--color-text-secondary)] mb-1">Other Monthly Expenses</label>
+            <input type="number" id="other" placeholder="1000" class="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Calculate Button -->
+      <button id="calc-btn" type="button" class="w-full sm:w-auto px-8 py-3 rounded-lg bg-[var(--color-primary)] text-white font-semibold text-lg hover:opacity-90 transition-opacity mb-8">Calculate Family Cost</button>
+
+      <!-- Results -->
+      <div id="results" class="hidden">
+        <h2 class="text-xl font-bold text-[var(--color-text)] mb-4">Your Family Cost Breakdown</h2>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div class="bg-indigo-50 dark:bg-indigo-950/40 rounded-lg p-4">
+            <div class="text-2xl font-bold text-[var(--color-primary)]" id="total-annual">$0</div>
+            <div class="text-sm text-[var(--color-text-secondary)]">Total Annual Childcare</div>
+          </div>
+          <div class="bg-indigo-50 dark:bg-indigo-950/40 rounded-lg p-4">
+            <div class="text-2xl font-bold text-[var(--color-primary)]" id="total-monthly">$0</div>
+            <div class="text-sm text-[var(--color-text-secondary)]">Monthly Childcare</div>
+          </div>
+          <div class="bg-indigo-50 dark:bg-indigo-950/40 rounded-lg p-4">
+            <div class="text-2xl font-bold" id="income-pct">0%</div>
+            <div class="text-sm text-[var(--color-text-secondary)]">% of Income</div>
+          </div>
+          <div class="bg-indigo-50 dark:bg-indigo-950/40 rounded-lg p-4">
+            <div class="text-2xl font-bold" id="afford-label">—</div>
+            <div class="text-sm text-[var(--color-text-secondary)]">Affordability</div>
+          </div>
+        </div>
+
+        <!-- Affordability Bar -->
+        <div class="bg-[var(--color-surface)] rounded-lg p-6 border border-[var(--color-border)] mb-6">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-medium text-[var(--color-text)]">Childcare as % of Income</span>
+            <span class="text-sm text-[var(--color-text-secondary)]" id="bar-pct">0%</span>
+          </div>
+          <div class="h-3 rounded-full overflow-hidden bg-[var(--color-border)]">
+            <div id="afford-bar" class="h-full rounded-full bg-[var(--color-primary)] transition-all duration-500" style="width:0%"></div>
+          </div>
+          <div class="flex justify-between mt-1 text-xs text-[var(--color-text-secondary)]">
+            <span>0%</span>
+            <span class="text-teal-600 dark:text-teal-400">7% HHS Affordable</span>
+            <span>15%</span>
+            <span>25%+</span>
+          </div>
+          <div id="afford-msg" class="mt-3 text-sm p-3 rounded-lg"></div>
+        </div>
+
+        <!-- Pie Chart -->
+        <div class="bg-[var(--color-surface)] rounded-lg p-6 border border-[var(--color-border)] mb-6">
+          <h3 class="font-semibold text-[var(--color-text)] mb-4">Monthly Budget Breakdown</h3>
+          <div class="flex flex-col sm:flex-row items-center gap-6">
+            <div id="pie-chart" class="w-48 h-48 rounded-full" style="background: conic-gradient(var(--color-border) 0deg 360deg)"></div>
+            <div id="pie-legend" class="space-y-2 text-sm"></div>
+          </div>
+        </div>
+
+        <!-- County Comparison -->
+        <div id="county-comparison" class="hidden bg-[var(--color-surface)] rounded-lg p-6 border border-[var(--color-border)] mb-6">
+          <h3 class="font-semibold text-[var(--color-text)] mb-3">Compared to Your County</h3>
+          <div id="county-comp-content" class="text-sm text-[var(--color-text-secondary)]"></div>
+        </div>
+
+        <!-- Share -->
+        <div class="text-sm text-[var(--color-text-secondary)]">
+          <span class="font-medium text-[var(--color-text)]">Share this result:</span>
+          Copy the URL — it preserves your settings.
+        </div>
+      </div>
+
+      <p class="text-xs text-[var(--color-text-secondary)] mt-6">
+        This calculator uses data from the DOL National Database of Childcare Prices. The HHS considers childcare affordable when it costs no more than 7% of household income. Results are estimates and do not constitute financial advice.
+      </p>
+
+      <div class="mt-6 p-4 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)]">
+        <p class="text-sm text-[var(--color-text-secondary)]">
+          Looking for a simpler estimate? Try our <a href="/calculator" class="text-[var(--color-primary)] hover:underline">basic affordability calculator</a>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <script is:inline type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Family Cost Calculator",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Web",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "description": "Calculate total family childcare costs with county data, multiple children, and affordability analysis."
+    }
+  </script>
+</Base>
+
+<script is:inline>
+(function() {
+  var countyData = null;
+  var childCount = 0;
+  var debounceTimer = null;
+
+  function clearChildren(el) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+  }
+
+  // --- County Search ---
+  var countySearch = document.getElementById('county-search');
+  var countyDropdown = document.getElementById('county-dropdown');
+
+  if (countySearch && countyDropdown) {
+    countySearch.addEventListener('input', function() {
+      var q = this.value.trim();
+      if (debounceTimer) clearTimeout(debounceTimer);
+      if (q.length < 2) { countyDropdown.classList.add('hidden'); return; }
+
+      debounceTimer = setTimeout(function() {
+        fetch('/api/county-data?q=' + encodeURIComponent(q))
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            clearChildren(countyDropdown);
+            if (!data.length) { countyDropdown.classList.add('hidden'); return; }
+            data.forEach(function(c) {
+              var btn = document.createElement('button');
+              btn.type = 'button';
+              btn.className = 'w-full text-left px-3 py-2 hover:bg-[var(--color-surface)] transition-colors text-sm';
+              var nameEl = document.createElement('span');
+              nameEl.className = 'font-medium text-[var(--color-text)]';
+              nameEl.textContent = c.name;
+              var stateEl = document.createElement('span');
+              stateEl.className = 'text-[var(--color-text-secondary)] ml-1';
+              stateEl.textContent = c.state;
+              btn.appendChild(nameEl);
+              btn.appendChild(stateEl);
+              btn.addEventListener('click', function() {
+                countySearch.value = c.name + ', ' + c.state;
+                countyDropdown.classList.add('hidden');
+                loadCountyData(c.fips);
+              });
+              countyDropdown.appendChild(btn);
+            });
+            countyDropdown.classList.remove('hidden');
+          })
+          .catch(function() {});
+      }, 250);
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!countySearch.contains(e.target) && !countyDropdown.contains(e.target)) {
+        countyDropdown.classList.add('hidden');
+      }
+    });
+  }
+
+  function loadCountyData(fips) {
+    fetch('/api/county-data?fips=' + encodeURIComponent(fips))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.error) return;
+        countyData = data;
+        var info = document.getElementById('county-info');
+        if (info) {
+          info.classList.remove('hidden');
+          info.textContent = 'Loaded costs for ' + data.name + ', ' + data.state + '. Median income: $' + (data.median_income ? data.median_income.toLocaleString() : 'N/A');
+        }
+        var incomeEl = document.getElementById('income');
+        if (incomeEl && !incomeEl.value && data.median_income) {
+          incomeEl.value = data.median_income;
+        }
+      })
+      .catch(function() {});
+  }
+
+  // --- Children Management ---
+  var childrenList = document.getElementById('children-list');
+  var noChildMsg = document.getElementById('no-children-msg');
+  var addBtn = document.getElementById('add-child-btn');
+
+  if (addBtn) {
+    addBtn.addEventListener('click', function() {
+      childCount++;
+      if (noChildMsg) noChildMsg.classList.add('hidden');
+
+      var row = document.createElement('div');
+      row.className = 'flex flex-col sm:flex-row gap-2 items-start sm:items-center p-3 bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)]';
+      row.setAttribute('data-child', String(childCount));
+
+      var label = document.createElement('span');
+      label.className = 'text-sm font-medium text-[var(--color-text)] w-20 shrink-0';
+      label.textContent = 'Child ' + childCount;
+
+      var ageSelect = document.createElement('select');
+      ageSelect.className = 'child-age px-2 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] text-sm';
+      var ageOpts = [
+        ['infant', 'Infant (0-1)'],
+        ['toddler', 'Toddler (1-2)'],
+        ['preschool', 'Preschool (3-5)'],
+        ['school_age', 'School-Age (6+)']
+      ];
+      ageOpts.forEach(function(o) {
+        var opt = document.createElement('option');
+        opt.value = o[0];
+        opt.textContent = o[1];
+        ageSelect.appendChild(opt);
+      });
+
+      var typeSelect = document.createElement('select');
+      typeSelect.className = 'child-type px-2 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] text-sm';
+      var typeOpts = [['center', 'Center-Based'], ['family', 'Family-Based']];
+      typeOpts.forEach(function(o) {
+        var opt = document.createElement('option');
+        opt.value = o[0];
+        opt.textContent = o[1];
+        typeSelect.appendChild(opt);
+      });
+
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'text-sm text-amber-600 dark:text-amber-400 hover:underline ml-auto';
+      removeBtn.textContent = 'Remove';
+      removeBtn.addEventListener('click', function() {
+        row.remove();
+        if (childrenList && childrenList.children.length === 0 && noChildMsg) {
+          noChildMsg.classList.remove('hidden');
+        }
+      });
+
+      row.appendChild(label);
+      row.appendChild(ageSelect);
+      row.appendChild(typeSelect);
+      row.appendChild(removeBtn);
+      if (childrenList) childrenList.appendChild(row);
+    });
+  }
+
+  // --- Calculate ---
+  var calcBtn = document.getElementById('calc-btn');
+  if (calcBtn) {
+    calcBtn.addEventListener('click', function() {
+      var income = parseFloat(document.getElementById('income').value) || 0;
+      var rent = parseFloat(document.getElementById('rent').value) || 0;
+      var otherExp = parseFloat(document.getElementById('other').value) || 0;
+
+      var childRows = document.querySelectorAll('[data-child]');
+      if (childRows.length === 0) return;
+
+      var totalAnnual = 0;
+      childRows.forEach(function(row) {
+        var age = row.querySelector('.child-age').value;
+        var type = row.querySelector('.child-type').value;
+        var cost = getChildCost(age, type);
+        totalAnnual += cost;
+      });
+
+      var monthlyChildcare = totalAnnual / 12;
+      var pct = income > 0 ? (totalAnnual / income) * 100 : 0;
+
+      // Update summary cards
+      document.getElementById('total-annual').textContent = '$' + Math.round(totalAnnual).toLocaleString();
+      document.getElementById('total-monthly').textContent = '$' + Math.round(monthlyChildcare).toLocaleString();
+      document.getElementById('income-pct').textContent = pct.toFixed(1) + '%';
+
+      // Affordability
+      var affordEl = document.getElementById('afford-label');
+      var affordBar = document.getElementById('afford-bar');
+      var affordMsg = document.getElementById('afford-msg');
+      var barPct = document.getElementById('bar-pct');
+      var incomePctEl = document.getElementById('income-pct');
+
+      barPct.textContent = pct.toFixed(1) + '%';
+      affordBar.style.width = Math.min(pct / 25 * 100, 100) + '%';
+
+      if (pct <= 7) {
+        affordEl.textContent = 'Affordable';
+        affordEl.className = 'text-2xl font-bold text-teal-600 dark:text-teal-400';
+        incomePctEl.className = 'text-2xl font-bold text-teal-600 dark:text-teal-400';
+        affordBar.className = 'h-full rounded-full bg-teal-500 transition-all duration-500';
+        affordMsg.className = 'mt-3 text-sm p-3 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400';
+        affordMsg.textContent = 'Your childcare costs are within the HHS affordability threshold of 7% of household income.';
+      } else if (pct <= 15) {
+        affordEl.textContent = 'Stretched';
+        affordEl.className = 'text-2xl font-bold text-amber-600 dark:text-amber-400';
+        incomePctEl.className = 'text-2xl font-bold text-amber-600 dark:text-amber-400';
+        affordBar.className = 'h-full rounded-full bg-amber-500 transition-all duration-500';
+        affordMsg.className = 'mt-3 text-sm p-3 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400';
+        affordMsg.textContent = 'Your childcare costs exceed the 7% HHS threshold. Many families in this range struggle to balance budgets.';
+      } else {
+        affordEl.textContent = 'Unaffordable';
+        affordEl.className = 'text-2xl font-bold text-amber-600 dark:text-amber-400';
+        incomePctEl.className = 'text-2xl font-bold text-amber-600 dark:text-amber-400';
+        affordBar.className = 'h-full rounded-full bg-red-500 transition-all duration-500';
+        affordMsg.className = 'mt-3 text-sm p-3 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400';
+        affordMsg.textContent = 'Your childcare costs are significantly above the 7% HHS threshold. You may be eligible for subsidies or assistance programs.';
+      }
+
+      // Pie chart
+      var monthlyIncome = income / 12;
+      var remaining = Math.max(monthlyIncome - monthlyChildcare - rent - otherExp, 0);
+      var total = monthlyChildcare + rent + otherExp + remaining;
+
+      if (total > 0) {
+        var childDeg = (monthlyChildcare / total) * 360;
+        var rentDeg = (rent / total) * 360;
+        var otherDeg = (otherExp / total) * 360;
+        var pieEl = document.getElementById('pie-chart');
+        pieEl.style.background = 'conic-gradient(' +
+          'var(--color-primary) 0deg ' + childDeg + 'deg, ' +
+          '#3b82f6 ' + childDeg + 'deg ' + (childDeg + rentDeg) + 'deg, ' +
+          '#f59e0b ' + (childDeg + rentDeg) + 'deg ' + (childDeg + rentDeg + otherDeg) + 'deg, ' +
+          '#10b981 ' + (childDeg + rentDeg + otherDeg) + 'deg 360deg)';
+
+        var legendEl = document.getElementById('pie-legend');
+        clearChildren(legendEl);
+        var legendItems = [
+          ['var(--color-primary)', 'Childcare', '$' + Math.round(monthlyChildcare).toLocaleString() + '/mo'],
+          ['#3b82f6', 'Rent/Mortgage', '$' + Math.round(rent).toLocaleString() + '/mo'],
+          ['#f59e0b', 'Other Expenses', '$' + Math.round(otherExp).toLocaleString() + '/mo'],
+          ['#10b981', 'Remaining', '$' + Math.round(remaining).toLocaleString() + '/mo'],
+        ];
+        legendItems.forEach(function(item) {
+          var row = document.createElement('div');
+          row.className = 'flex items-center gap-2';
+          var dot = document.createElement('span');
+          dot.className = 'w-3 h-3 rounded-full shrink-0';
+          dot.style.backgroundColor = item[0];
+          var text = document.createElement('span');
+          text.className = 'text-[var(--color-text)]';
+          text.textContent = item[1] + ': ' + item[2];
+          row.appendChild(dot);
+          row.appendChild(text);
+          legendEl.appendChild(row);
+        });
+      }
+
+      // County comparison
+      if (countyData && countyData.median_income) {
+        var compEl = document.getElementById('county-comparison');
+        var compContent = document.getElementById('county-comp-content');
+        compEl.classList.remove('hidden');
+        clearChildren(compContent);
+
+        var medianRatio = (totalAnnual / countyData.median_income * 100).toFixed(1);
+        var p1 = document.createElement('p');
+        p1.textContent = 'In ' + countyData.name + ', ' + countyData.state + ', this childcare cost represents ' + medianRatio + '% of the county median income ($' + countyData.median_income.toLocaleString() + ').';
+        compContent.appendChild(p1);
+
+        if (countyData.poverty_rate) {
+          var p2 = document.createElement('p');
+          p2.className = 'mt-1';
+          p2.textContent = 'County poverty rate: ' + countyData.poverty_rate + '%';
+          compContent.appendChild(p2);
+        }
+      }
+
+      // Update URL
+      var params = new URLSearchParams();
+      if (countyData) params.set('county', countyData.fips);
+      childRows.forEach(function(row) {
+        params.append('children', row.querySelector('.child-age').value + '-' + row.querySelector('.child-type').value);
+      });
+      if (income) params.set('income', String(income));
+      if (rent) params.set('rent', String(rent));
+      if (otherExp) params.set('other', String(otherExp));
+      history.replaceState(null, '', '?' + params.toString());
+
+      document.getElementById('results').classList.remove('hidden');
+      document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+    });
+  }
+
+  function getChildCost(age, type) {
+    if (!countyData) {
+      // National averages as fallback
+      var defaults = {
+        center_infant: 13000, center_toddler: 11500, center_preschool: 10500, center_school_age: 8000,
+        family_infant: 9500, family_toddler: 8500, family_preschool: 8000, family_school_age: 6500
+      };
+      return defaults[type + '_' + age] || 10000;
+    }
+    var key = type + '_' + age;
+    return countyData[key] || 0;
+  }
+
+  // --- Restore from URL ---
+  function restoreFromUrl() {
+    var params = new URLSearchParams(window.location.search);
+    var county = params.get('county');
+    var children = params.getAll('children');
+    var income = params.get('income');
+    var rent = params.get('rent');
+    var other = params.get('other');
+
+    if (county) loadCountyData(county);
+    if (income) document.getElementById('income').value = income;
+    if (rent) document.getElementById('rent').value = rent;
+    if (other) document.getElementById('other').value = other;
+
+    children.forEach(function(child) {
+      var parts = child.split('-');
+      if (parts.length === 2) {
+        document.getElementById('add-child-btn').click();
+        var rows = document.querySelectorAll('[data-child]');
+        var last = rows[rows.length - 1];
+        if (last) {
+          last.querySelector('.child-age').value = parts[0];
+          last.querySelector('.child-type').value = parts[1];
+        }
+      }
+    });
+
+    if (children.length > 0 && income) {
+      setTimeout(function() {
+        document.getElementById('calc-btn').click();
+      }, 500);
+    }
+  }
+
+  restoreFromUrl();
+})();
+</script>
