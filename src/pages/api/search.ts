@@ -1,18 +1,24 @@
 import type { APIRoute } from 'astro';
 
+const CACHE_HEADERS = {
+  'Content-Type': 'application/json',
+  'Cache-Control': 'public, max-age=300, s-maxage=3600',
+};
+
 export const GET: APIRoute = async ({ request, locals }) => {
   const url = new URL(request.url);
   const query = url.searchParams.get('q') || '';
-  const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
+  const trimmed = query.trim();
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '15'), 15);
 
-  if (!query.trim()) {
+  if (trimmed.length < 2) {
     return new Response(JSON.stringify({ results: [], query: '' }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: CACHE_HEADERS,
     });
   }
 
   const db = (locals as any).runtime.env.DB;
-  const like = '%' + query.trim() + '%';
+  const prefix = trimmed + '%';
   const { results } = await db.prepare(`
     SELECT fips, name, state, slug, center_infant, center_toddler, center_preschool,
            family_infant, median_income, poverty_rate
@@ -20,9 +26,9 @@ export const GET: APIRoute = async ({ request, locals }) => {
     WHERE name LIKE ? OR state LIKE ? OR fips = ?
     ORDER BY population DESC
     LIMIT ?
-  `).bind(like, like, query.trim(), limit).all();
+  `).bind(prefix, prefix, trimmed, limit).all();
 
-  return new Response(JSON.stringify({ results, query: query.trim() }), {
-    headers: { 'Content-Type': 'application/json' },
+  return new Response(JSON.stringify({ results, query: trimmed }), {
+    headers: CACHE_HEADERS,
   });
 };
