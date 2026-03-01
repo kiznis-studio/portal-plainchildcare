@@ -190,6 +190,80 @@ export async function searchCountiesForCalculator(db: D1Database, query: string,
   return results;
 }
 
+// --- Affordability Desert ---
+
+export interface DesertCounty extends County {
+  cost_burden_pct: number;
+}
+
+export async function getAffordabilityDeserts(db: D1Database, limit = 100): Promise<DesertCounty[]> {
+  const { results } = await db.prepare(`
+    SELECT *, ROUND(CAST(center_infant AS REAL) / median_income * 100, 1) as cost_burden_pct
+    FROM counties
+    WHERE center_infant IS NOT NULL AND median_income IS NOT NULL AND median_income > 0
+      AND (CAST(center_infant AS REAL) / median_income * 100) > 20
+    ORDER BY (CAST(center_infant AS REAL) / median_income) DESC
+    LIMIT ?
+  `).bind(limit).all<DesertCounty>();
+  return results;
+}
+
+export async function getAffordabilityDesertsByState(db: D1Database, stateAbbr: string, limit = 100): Promise<DesertCounty[]> {
+  const { results } = await db.prepare(`
+    SELECT *, ROUND(CAST(center_infant AS REAL) / median_income * 100, 1) as cost_burden_pct
+    FROM counties
+    WHERE state = ? AND center_infant IS NOT NULL AND median_income IS NOT NULL AND median_income > 0
+    ORDER BY (CAST(center_infant AS REAL) / median_income) DESC
+    LIMIT ?
+  `).bind(stateAbbr, limit).all<DesertCounty>();
+  return results;
+}
+
+export interface DesertStateSummary {
+  abbr: string;
+  name: string;
+  slug: string;
+  county_count: number;
+  desert_count: number;
+  desert_pct: number;
+  avg_cost_burden: number;
+  worst_burden: number;
+}
+
+export async function getDesertSummaryByState(db: D1Database): Promise<DesertStateSummary[]> {
+  const { results } = await db.prepare(`
+    SELECT
+      s.abbr, s.name, s.slug, s.county_count,
+      COUNT(CASE WHEN (CAST(c.center_infant AS REAL) / c.median_income * 100) > 20 THEN 1 END) as desert_count,
+      ROUND(COUNT(CASE WHEN (CAST(c.center_infant AS REAL) / c.median_income * 100) > 20 THEN 1 END) * 100.0 / COUNT(*), 1) as desert_pct,
+      ROUND(AVG(CAST(c.center_infant AS REAL) / c.median_income * 100), 1) as avg_cost_burden,
+      ROUND(MAX(CAST(c.center_infant AS REAL) / c.median_income * 100), 1) as worst_burden
+    FROM states s
+    JOIN counties c ON c.state = s.abbr
+    WHERE c.center_infant IS NOT NULL AND c.median_income IS NOT NULL AND c.median_income > 0
+    GROUP BY s.abbr
+    ORDER BY avg_cost_burden DESC
+  `).all<DesertStateSummary>();
+  return results;
+}
+
+export async function getNationalDesertStats(db: D1Database) {
+  return db.prepare(`
+    SELECT
+      COUNT(*) as total_counties,
+      COUNT(CASE WHEN (CAST(center_infant AS REAL) / median_income * 100) > 20 THEN 1 END) as desert_count,
+      ROUND(AVG(CAST(center_infant AS REAL) / median_income * 100), 1) as avg_cost_burden,
+      ROUND(MAX(CAST(center_infant AS REAL) / median_income * 100), 1) as worst_burden
+    FROM counties
+    WHERE center_infant IS NOT NULL AND median_income IS NOT NULL AND median_income > 0
+  `).first<{
+    total_counties: number;
+    desert_count: number;
+    avg_cost_burden: number;
+    worst_burden: number;
+  }>();
+}
+
 // --- Stats ---
 
 export async function getNationalStats(db: D1Database) {

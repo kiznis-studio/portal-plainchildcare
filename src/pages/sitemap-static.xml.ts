@@ -3,7 +3,7 @@ import type { APIRoute } from 'astro';
 export const GET: APIRoute = async () => {
   const base = 'https://plainchildcare.com';
   const pages = [
-    '/', '/state', '/rankings', '/calculator', '/search',
+    '/', '/state', '/rankings', '/rankings/affordability-deserts', '/calculator', '/search',
     '/guides', '/guides/childcare-subsidy-programs', '/guides/employer-childcare-benefits',
     '/guides/cheapest-states-childcare-2026', '/guides/daycare-vs-home-daycare',
     '/guides/childcare-tax-credits-guide',

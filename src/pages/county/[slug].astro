@@ -79,7 +79,19 @@ const faqSchema = faqItems.length > 0 ? JSON.stringify({
       <a href={`/state/${stateSlug}`} class="hover:text-[var(--color-primary)]">{stateName}</a> /
     </div>
     <h1 class="text-2xl md:text-3xl font-bold mb-1">Childcare Costs in {county.name}, {county.state}</h1>
-    <p class="text-[var(--color-text-secondary)] mb-3">FIPS: {county.fips} &middot; Data year: {county.latest_year}</p>
+    <div class="flex items-center gap-3 mb-3">
+      <p class="text-[var(--color-text-secondary)]">FIPS: {county.fips} &middot; Data year: {county.latest_year}</p>
+      {affordPct && parseFloat(affordPct) > 20 && (
+        <span class="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">
+          Affordability Desert
+        </span>
+      )}
+      {affordPct && parseFloat(affordPct) <= 7 && (
+        <span class="text-xs px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 font-medium">
+          Affordable
+        </span>
+      )}
+    </div>
 
     {county.center_infant && (
       <p class="text-[var(--color-text-secondary)] mb-6 leading-relaxed">
