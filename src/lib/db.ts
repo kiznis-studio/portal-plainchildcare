@@ -1,6 +1,14 @@
 // PlainChildcare D1 query library
 // All functions accept D1Database as first param — NEVER at module scope
 
+// --- Query cache (permanent, process-lifetime) ---
+const queryCache = new Map<string, any>();
+export function getQueryCacheSize(): number { return queryCache.size; }
+function cached<T>(key: string, compute: () => Promise<T>): Promise<T> {
+  if (queryCache.has(key)) return Promise.resolve(queryCache.get(key) as T);
+  return compute().then(result => { queryCache.set(key, result); return result; });
+}
+
 // --- Interfaces ---
 
 export interface County {
@@ -90,10 +98,12 @@ export async function getCountyBySlug(db: D1Database, slug: string): Promise<Cou
 }
 
 export async function getCountiesByState(db: D1Database, state: string, limit = 200): Promise<County[]> {
-  const { results } = await db.prepare(
-    'SELECT * FROM counties WHERE state = ? ORDER BY name COLLATE NOCASE LIMIT ?'
-  ).bind(state, limit).all<County>();
-  return results;
+  return cached(`counties_by_state_${state}_${limit}`, async () => {
+    const { results } = await db.prepare(
+      'SELECT * FROM counties WHERE state = ? ORDER BY name COLLATE NOCASE LIMIT ?'
+    ).bind(state, limit).all<County>();
+    return results;
+  });
 }
 
 export async function getCountyHistory(db: D1Database, fips: string): Promise<CountyHistory[]> {
@@ -106,8 +116,10 @@ export async function getCountyHistory(db: D1Database, fips: string): Promise<Co
 // --- States ---
 
 export async function getAllStates(db: D1Database): Promise<StateInfo[]> {
-  const { results } = await db.prepare('SELECT * FROM states ORDER BY name COLLATE NOCASE').all<StateInfo>();
-  return results;
+  return cached('all_states', async () => {
+    const { results } = await db.prepare('SELECT * FROM states ORDER BY name COLLATE NOCASE').all<StateInfo>();
+    return results;
+  });
 }
 
 export async function getStateBySlug(db: D1Database, slug: string): Promise<StateInfo | null> {
@@ -117,47 +129,59 @@ export async function getStateBySlug(db: D1Database, slug: string): Promise<Stat
 // --- Rankings ---
 
 export async function getMostExpensiveCounties(db: D1Database, limit = 25): Promise<County[]> {
-  const { results } = await db.prepare(
-    'SELECT * FROM counties WHERE center_infant IS NOT NULL ORDER BY center_infant DESC LIMIT ?'
-  ).bind(limit).all<County>();
-  return results;
+  return cached(`most_expensive_counties_${limit}`, async () => {
+    const { results } = await db.prepare(
+      'SELECT * FROM counties WHERE center_infant IS NOT NULL ORDER BY center_infant DESC LIMIT ?'
+    ).bind(limit).all<County>();
+    return results;
+  });
 }
 
 export async function getLeastExpensiveCounties(db: D1Database, limit = 25): Promise<County[]> {
-  const { results } = await db.prepare(
-    'SELECT * FROM counties WHERE center_infant IS NOT NULL AND center_infant > 0 ORDER BY center_infant ASC LIMIT ?'
-  ).bind(limit).all<County>();
-  return results;
+  return cached(`least_expensive_counties_${limit}`, async () => {
+    const { results } = await db.prepare(
+      'SELECT * FROM counties WHERE center_infant IS NOT NULL AND center_infant > 0 ORDER BY center_infant ASC LIMIT ?'
+    ).bind(limit).all<County>();
+    return results;
+  });
 }
 
 export async function getLeastAffordableCounties(db: D1Database, limit = 25): Promise<County[]> {
-  const { results } = await db.prepare(
-    'SELECT * FROM counties WHERE center_infant IS NOT NULL AND median_income IS NOT NULL AND median_income > 0 ORDER BY (CAST(center_infant AS REAL) / median_income) DESC LIMIT ?'
-  ).bind(limit).all<County>();
-  return results;
+  return cached(`least_affordable_counties_${limit}`, async () => {
+    const { results } = await db.prepare(
+      'SELECT * FROM counties WHERE center_infant IS NOT NULL AND median_income IS NOT NULL AND median_income > 0 ORDER BY (CAST(center_infant AS REAL) / median_income) DESC LIMIT ?'
+    ).bind(limit).all<County>();
+    return results;
+  });
 }
 
 export async function getMostAffordableCounties(db: D1Database, limit = 25): Promise<County[]> {
-  const { results } = await db.prepare(
-    'SELECT * FROM counties WHERE center_infant IS NOT NULL AND center_infant > 0 AND median_income IS NOT NULL AND median_income > 0 ORDER BY (CAST(center_infant AS REAL) / median_income) ASC LIMIT ?'
-  ).bind(limit).all<County>();
-  return results;
+  return cached(`most_affordable_counties_${limit}`, async () => {
+    const { results } = await db.prepare(
+      'SELECT * FROM counties WHERE center_infant IS NOT NULL AND center_infant > 0 AND median_income IS NOT NULL AND median_income > 0 ORDER BY (CAST(center_infant AS REAL) / median_income) ASC LIMIT ?'
+    ).bind(limit).all<County>();
+    return results;
+  });
 }
 
 // --- State-Scoped Rankings ---
 
 export async function getCheapestCountiesByState(db: D1Database, stateAbbr: string, limit = 50): Promise<County[]> {
-  const { results } = await db.prepare(
-    'SELECT * FROM counties WHERE state = ? AND center_infant IS NOT NULL AND center_infant > 0 ORDER BY center_infant ASC LIMIT ?'
-  ).bind(stateAbbr, limit).all<County>();
-  return results;
+  return cached(`cheapest_by_state_${stateAbbr}_${limit}`, async () => {
+    const { results } = await db.prepare(
+      'SELECT * FROM counties WHERE state = ? AND center_infant IS NOT NULL AND center_infant > 0 ORDER BY center_infant ASC LIMIT ?'
+    ).bind(stateAbbr, limit).all<County>();
+    return results;
+  });
 }
 
 export async function getMostExpensiveCountiesByState(db: D1Database, stateAbbr: string, limit = 50): Promise<County[]> {
-  const { results } = await db.prepare(
-    'SELECT * FROM counties WHERE state = ? AND center_infant IS NOT NULL ORDER BY center_infant DESC LIMIT ?'
-  ).bind(stateAbbr, limit).all<County>();
-  return results;
+  return cached(`most_expensive_by_state_${stateAbbr}_${limit}`, async () => {
+    const { results } = await db.prepare(
+      'SELECT * FROM counties WHERE state = ? AND center_infant IS NOT NULL ORDER BY center_infant DESC LIMIT ?'
+    ).bind(stateAbbr, limit).all<County>();
+    return results;
+  });
 }
 
 // --- Search ---
@@ -231,56 +255,62 @@ export interface DesertStateSummary {
 }
 
 export async function getDesertSummaryByState(db: D1Database): Promise<DesertStateSummary[]> {
-  const { results } = await db.prepare(`
-    SELECT
-      s.abbr, s.name, s.slug, s.county_count,
-      COUNT(CASE WHEN (CAST(c.center_infant AS REAL) / c.median_income * 100) > 20 THEN 1 END) as desert_count,
-      ROUND(COUNT(CASE WHEN (CAST(c.center_infant AS REAL) / c.median_income * 100) > 20 THEN 1 END) * 100.0 / COUNT(*), 1) as desert_pct,
-      ROUND(AVG(CAST(c.center_infant AS REAL) / c.median_income * 100), 1) as avg_cost_burden,
-      ROUND(MAX(CAST(c.center_infant AS REAL) / c.median_income * 100), 1) as worst_burden
-    FROM states s
-    JOIN counties c ON c.state = s.abbr
-    WHERE c.center_infant IS NOT NULL AND c.median_income IS NOT NULL AND c.median_income > 0
-    GROUP BY s.abbr
-    ORDER BY avg_cost_burden DESC
-  `).all<DesertStateSummary>();
-  return results;
+  return cached('desert_summary_by_state', async () => {
+    const { results } = await db.prepare(`
+      SELECT
+        s.abbr, s.name, s.slug, s.county_count,
+        COUNT(CASE WHEN (CAST(c.center_infant AS REAL) / c.median_income * 100) > 20 THEN 1 END) as desert_count,
+        ROUND(COUNT(CASE WHEN (CAST(c.center_infant AS REAL) / c.median_income * 100) > 20 THEN 1 END) * 100.0 / COUNT(*), 1) as desert_pct,
+        ROUND(AVG(CAST(c.center_infant AS REAL) / c.median_income * 100), 1) as avg_cost_burden,
+        ROUND(MAX(CAST(c.center_infant AS REAL) / c.median_income * 100), 1) as worst_burden
+      FROM states s
+      JOIN counties c ON c.state = s.abbr
+      WHERE c.center_infant IS NOT NULL AND c.median_income IS NOT NULL AND c.median_income > 0
+      GROUP BY s.abbr
+      ORDER BY avg_cost_burden DESC
+    `).all<DesertStateSummary>();
+    return results;
+  });
 }
 
 export async function getNationalDesertStats(db: D1Database) {
-  return db.prepare(`
-    SELECT
-      COUNT(*) as total_counties,
-      COUNT(CASE WHEN (CAST(center_infant AS REAL) / median_income * 100) > 20 THEN 1 END) as desert_count,
-      ROUND(AVG(CAST(center_infant AS REAL) / median_income * 100), 1) as avg_cost_burden,
-      ROUND(MAX(CAST(center_infant AS REAL) / median_income * 100), 1) as worst_burden
-    FROM counties
-    WHERE center_infant IS NOT NULL AND median_income IS NOT NULL AND median_income > 0
-  `).first<{
-    total_counties: number;
-    desert_count: number;
-    avg_cost_burden: number;
-    worst_burden: number;
-  }>();
+  return cached('national_desert_stats', () =>
+    db.prepare(`
+      SELECT
+        COUNT(*) as total_counties,
+        COUNT(CASE WHEN (CAST(center_infant AS REAL) / median_income * 100) > 20 THEN 1 END) as desert_count,
+        ROUND(AVG(CAST(center_infant AS REAL) / median_income * 100), 1) as avg_cost_burden,
+        ROUND(MAX(CAST(center_infant AS REAL) / median_income * 100), 1) as worst_burden
+      FROM counties
+      WHERE center_infant IS NOT NULL AND median_income IS NOT NULL AND median_income > 0
+    `).first<{
+      total_counties: number;
+      desert_count: number;
+      avg_cost_burden: number;
+      worst_burden: number;
+    }>()
+  );
 }
 
 // --- Stats ---
 
 export async function getNationalStats(db: D1Database) {
-  return db.prepare(`
-    SELECT
-      (SELECT COUNT(*) FROM counties) as county_count,
-      (SELECT COUNT(*) FROM states) as state_count,
-      (SELECT AVG(center_infant) FROM counties WHERE center_infant IS NOT NULL) as avg_center_infant,
-      (SELECT AVG(center_preschool) FROM counties WHERE center_preschool IS NOT NULL) as avg_center_preschool,
-      (SELECT MAX(center_infant) FROM counties) as max_center_infant,
-      (SELECT MIN(center_infant) FROM counties WHERE center_infant > 0) as min_center_infant
-  `).first<{
-    county_count: number;
-    state_count: number;
-    avg_center_infant: number | null;
-    avg_center_preschool: number | null;
-    max_center_infant: number | null;
-    min_center_infant: number | null;
-  }>();
+  return cached('national_stats', () =>
+    db.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM counties) as county_count,
+        (SELECT COUNT(*) FROM states) as state_count,
+        (SELECT AVG(center_infant) FROM counties WHERE center_infant IS NOT NULL) as avg_center_infant,
+        (SELECT AVG(center_preschool) FROM counties WHERE center_preschool IS NOT NULL) as avg_center_preschool,
+        (SELECT MAX(center_infant) FROM counties) as max_center_infant,
+        (SELECT MIN(center_infant) FROM counties WHERE center_infant > 0) as min_center_infant
+    `).first<{
+      county_count: number;
+      state_count: number;
+      avg_center_infant: number | null;
+      avg_center_preschool: number | null;
+      max_center_infant: number | null;
+      min_center_infant: number | null;
+    }>()
+  );
 }
