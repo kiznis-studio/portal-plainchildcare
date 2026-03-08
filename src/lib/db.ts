@@ -314,3 +314,19 @@ export async function getNationalStats(db: D1Database) {
     }>()
   );
 }
+
+export async function warmQueryCache(db: D1Database): Promise<number> {
+  const start = Date.now();
+  await Promise.all([
+    getAllStates(db),
+    getMostExpensiveCounties(db),
+    getLeastExpensiveCounties(db),
+    getLeastAffordableCounties(db),
+    getMostAffordableCounties(db),
+    getDesertSummaryByState(db),
+    getNationalDesertStats(db),
+    getNationalStats(db),
+  ]);
+  console.log(`[cache] Warmed ${queryCache.size} queries in ${Date.now() - start}ms`);
+  return queryCache.size;
+}
