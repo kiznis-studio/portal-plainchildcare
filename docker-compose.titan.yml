@@ -1,0 +1,21 @@
+services:
+  portal-plainchildcare:
+    image: ghcr.io/kiznis-studio/portal-plainchildcare:latest
+    container_name: portal-plainchildcare
+    restart: unless-stopped
+    volumes:
+      - /opt/portals/data/sqlite/plainchildcare.db:/data/portal.db:ro
+    environment:
+      - DATABASE_PATH=/data/portal.db
+      - HOST=0.0.0.0
+      - PORT=4321
+      - CACHE_ENTRIES=500
+    networks:
+      - portals
+    mem_limit: 256m
+    cpus: 0.5
+
+networks:
+  portals:
+    external: true
+    name: portals-net
