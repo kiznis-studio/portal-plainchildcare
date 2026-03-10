@@ -317,8 +317,8 @@ export async function getNationalStats(db: D1Database) {
 
 export async function warmQueryCache(db: D1Database): Promise<number> {
   const start = Date.now();
+  const states = await getAllStates(db);
   await Promise.all([
-    getAllStates(db),
     getMostExpensiveCounties(db),
     getLeastExpensiveCounties(db),
     getLeastAffordableCounties(db),
@@ -326,6 +326,11 @@ export async function warmQueryCache(db: D1Database): Promise<number> {
     getDesertSummaryByState(db),
     getNationalDesertStats(db),
     getNationalStats(db),
+    ...states.flatMap(s => [
+      getCountiesByState(db, s.abbr),
+      getCheapestCountiesByState(db, s.abbr),
+      getMostExpensiveCountiesByState(db, s.abbr),
+    ]),
   ]);
   console.log(`[cache] Warmed ${queryCache.size} queries in ${Date.now() - start}ms`);
   return queryCache.size;
