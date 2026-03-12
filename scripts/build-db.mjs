@@ -253,4 +253,15 @@ console.log('States: ' + totalStates);
 console.log('Avg annual center infant cost: $' + Math.round(avgInfant).toLocaleString());
 console.log('Database: ' + DB_PATH);
 
+// --- Composite Indexes ---
+console.log('\nBuilding composite indexes...');
+db.prepare('CREATE INDEX IF NOT EXISTS idx_counties_state_infant ON counties(state, center_infant DESC)').run();
+db.prepare('CREATE INDEX IF NOT EXISTS idx_county_history_fips_year ON county_history(fips, year)').run();
+
+// --- Finalization ---
+console.log('Analyzing and finalizing...');
+db.pragma('journal_mode = DELETE');
+db.prepare('ANALYZE').run();
+db.prepare('VACUUM').run();
+
 db.close();
