@@ -292,6 +292,21 @@ export async function getNationalDesertStats(db: D1Database) {
   );
 }
 
+// --- Related Counties ---
+
+export function getRelatedCounties(
+  db: D1Database, state: string, excludeFips: string, limit = 6
+): Promise<Pick<County, 'slug' | 'name' | 'state' | 'center_infant' | 'median_income' | 'population'>[]> {
+  return cached(`related:${state}:${excludeFips}:${limit}`, async () => {
+    const { results } = await db.prepare(
+      `SELECT slug, name, state, center_infant, median_income, population
+       FROM counties WHERE state = ? AND fips != ? AND center_infant IS NOT NULL
+       ORDER BY name COLLATE NOCASE LIMIT ?`
+    ).bind(state, excludeFips, limit).all();
+    return results as any[];
+  });
+}
+
 // --- Stats ---
 
 export async function getNationalStats(db: D1Database) {

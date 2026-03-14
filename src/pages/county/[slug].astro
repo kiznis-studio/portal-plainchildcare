@@ -1,7 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import AdSlot from '../../components/ads/AdSlot.astro';
-import { getCountyBySlug, getCountyHistory, formatCost, formatNumber, affordabilityRatio, getStateName } from '../../lib/db';
+import { getCountyBySlug, getCountyHistory, getRelatedCounties, formatCost, formatNumber, affordabilityRatio, getStateName } from '../../lib/db';
 
 const { slug } = Astro.params;
 if (!slug) return Astro.redirect('/404');
@@ -10,7 +10,10 @@ const db = Astro.locals.runtime.env.DB;
 const county = await getCountyBySlug(db, slug);
 if (!county) return Astro.redirect('/404');
 
-const history = await getCountyHistory(db, county.fips);
+const [history, relatedCounties] = await Promise.all([
+  getCountyHistory(db, county.fips),
+  getRelatedCounties(db, county.state, county.fips, 6),
+]);
 const stateName = getStateName(county.state);
 const stateSlug = stateName.toLowerCase().replace(/\s+/g, '-');
 
@@ -56,6 +59,20 @@ if (history.length > 1) {
   }
 }
 
+// Add universal FAQ items
+faqItems.push({
+  q: `What age groups does childcare cost data cover in ${countyName}?`,
+  a: `Data covers four age groups: Infant (0-1), Toddler (1-2), Preschool (3-5), and School Age (6-12). Both center-based and family childcare costs are tracked separately for each age group.`,
+});
+faqItems.push({
+  q: `What is the HHS childcare affordability standard?`,
+  a: `The U.S. Department of Health and Human Services defines childcare as affordable when it costs no more than 7% of a family's household income. Counties where infant care exceeds 20% of median income are classified as "affordability deserts."`,
+});
+faqItems.push({
+  q: `Where does the childcare cost data come from?`,
+  a: `All data comes from the National Database of Childcare Prices (NDCP), maintained by the U.S. Department of Labor's Women's Bureau. It provides county-level childcare price estimates based on market rate surveys.`,
+});
+
 const faqSchema = faqItems.length > 0 ? JSON.stringify({
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
@@ -68,7 +85,7 @@ const faqSchema = faqItems.length > 0 ? JSON.stringify({
 ---
 
 <Base
-  title={`Childcare Costs in ${county.name}, ${county.state}`}
+  title={`Childcare in ${county.name}, ${county.state}: ${formatCost(county.center_infant)}/yr Infant${affordPct ? `, ${affordPct}% of Income` : ''} | PlainChildcare`}
   description={`Childcare costs in ${county.name}, ${stateName}. Center-based infant care: ${formatCost(county.center_infant)}/year. Family childcare infant: ${formatCost(county.family_infant)}/year.`}
   breadcrumbs={[{ name: 'Home', href: '/' }, { name: 'States', href: '/state' }, { name: stateName, href: `/state/${stateSlug}` }, { name: county.name }]}
 >
@@ -250,19 +267,57 @@ const faqSchema = faqItems.length > 0 ? JSON.stringify({
       </div>
     )}
 
-    <!-- Cross-Portal Links -->
-    <div class="mt-10 pt-6 border-t border-[var(--color-border)]">
-      <h3 class="text-sm font-semibold uppercase tracking-wider mb-3">Explore More Data</h3>
-      <div class="flex flex-wrap gap-2">
-        <a href="https://plainrent.com" class="text-sm px-3 py-1.5 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors" target="_blank" rel="noopener">Rent Data →</a>
-        <a href="https://plainschools.com" class="text-sm px-3 py-1.5 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors" target="_blank" rel="noopener">Schools →</a>
-        <a href="https://plaincrime.com" class="text-sm px-3 py-1.5 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors" target="_blank" rel="noopener">Crime Stats →</a>
+    <!-- Related Counties -->
+    {relatedCounties.length > 0 && (
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-4">Other Counties in {stateName}</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {relatedCounties.map(rc => (
+            <a href={`/county/${rc.slug}`} class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 hover:border-[var(--color-primary)] transition-colors group">
+              <div class="font-semibold group-hover:text-[var(--color-primary)] transition-colors">{rc.name}, {rc.state}</div>
+              <div class="text-sm text-[var(--color-text-secondary)] mt-1">
+                Infant: {formatCost(rc.center_infant)} &middot; {rc.median_income ? affordabilityRatio(rc.center_infant, rc.median_income) + ' of income' : ''}
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <!-- Cross-Portal Data -->
+    <div class="mb-8">
+      <h2 class="text-lg font-semibold mb-4">Related Data for {county.name}</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <a href="https://plainrent.com/" class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 hover:border-[var(--color-primary)] transition-colors group" target="_blank" rel="noopener">
+          <div class="font-semibold group-hover:text-[var(--color-primary)] transition-colors">PlainRent</div>
+          <div class="text-sm text-[var(--color-text-secondary)] mt-1">HUD fair market rents — compare housing costs alongside childcare</div>
+        </a>
+        <a href="https://plainschools.com/" class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 hover:border-[var(--color-primary)] transition-colors group" target="_blank" rel="noopener">
+          <div class="font-semibold group-hover:text-[var(--color-primary)] transition-colors">PlainSchools</div>
+          <div class="text-sm text-[var(--color-text-secondary)] mt-1">NCES school data — find schools when children age out of childcare</div>
+        </a>
+        <a href="https://plainfoodaccess.com/" class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 hover:border-[var(--color-primary)] transition-colors group" target="_blank" rel="noopener">
+          <div class="font-semibold group-hover:text-[var(--color-primary)] transition-colors">PlainFoodAccess</div>
+          <div class="text-sm text-[var(--color-text-secondary)] mt-1">USDA food access data — SNAP and food security in this county</div>
+        </a>
       </div>
     </div>
 
-    <p class="text-xs text-[var(--color-text-secondary)] mt-6">
-      Source: U.S. Department of Labor, Women's Bureau — National Database of Childcare Prices (NDCP). Costs are annual estimates based on weekly median prices.
-    </p>
+    <!-- Data Sources -->
+    <div class="mb-8">
+      <h2 class="text-lg font-semibold mb-3">Data Sources & Methodology</h2>
+      <div class="text-sm text-[var(--color-text-secondary)] space-y-2">
+        <p>
+          Childcare cost data from the <strong>U.S. Department of Labor, Women's Bureau — National Database
+          of Childcare Prices (NDCP)</strong>. Costs are annual estimates based on weekly median prices
+          at the county level.
+        </p>
+        <p>
+          Affordability is measured against the HHS benchmark of 7% of household income. Median household
+          income data from the U.S. Census Bureau American Community Survey.
+        </p>
+      </div>
+    </div>
   </section>
   {faqSchema && <script type="application/ld+json" set:html={faqSchema} />}
 </Base>
